@@ -61,5 +61,5 @@ export default defineConfig({
       }
     }
   },
-  base: './' // Use relative paths
+  base: '/' // Use absolute paths for Netlify SPA hosting
 })
