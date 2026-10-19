@@ -1,0 +1,11 @@
+[33mcommit a3d0c70920769acc4f2deea3dbc75ae3705f4bbf[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m
+Author: Admin User <user@example.com>
+Date:   Mon Jun 2 12:36:10 2025 +0530
+
+    Refactor Firestore rules to enhance security and access control, allowing authenticated users to list messages and enabling specific updates for user profiles. Consolidate notification functions into a single module, improve error handling in cloud functions, and update dependencies for better performance. Remove unused chat and push notification services.
+
+[33mcommit da33e26839ae61d57a8ece7831d4f87bf59073c4[m
+Author: Admin User <user@example.com>
+Date:   Mon May 26 11:11:33 2025 +0530
+
+    Enhance chat and push notification handling by improving payload structure for Flutter compatibility, adding error logging, and refining recipient processing logic. Removed unused notifications route and UI elements from the application.

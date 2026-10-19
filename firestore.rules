@@ -1,0 +1,210 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Users collection rules
+    match /users/{userId} {
+      allow read, update: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if false;
+      
+      // User token subcollections
+      match /tokens/{tokenId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
+      
+      match /fcm_tokens/{tokenId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
+    }
+
+    // Courses collection rules (merged)
+    match /courses/{courseId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Modules collection
+    match /modules/{moduleId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Content collection
+    match /content/{contentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // User progress tracking
+    match /user_progress/{progressId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Messages collection rules (new chat system)
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (isAdmin() || resource.data.senderId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Keep existing chat rules during transition
+    match /chats/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow delete: if false;
+    }
+
+    // Notifications rules
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+        (isAdmin() || (resource.data.recipients.size() == 0 || resource.data.recipients.hasAny([request.auth.uid])));
+      allow delete: if isAdmin();
+    }
+
+    // User tokens for FCM (flat collection structure)
+    match /user_tokens/{tokenId} {
+      // Allow authenticated users to manage their tokens
+      // More permissive to handle token cleanup and registration
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+      // Admins can do anything
+      allow read, write: if isAdmin();
+    }
+
+    // Typing status for chat
+    match /typing_status/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Content views for analytics
+    match /contentViews/{viewId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // User content views for one-time view enforcement
+    // Document ID format: {userId}_{contentId}
+    match /user_content_views/{viewId} {
+      // Allow reading own records.
+      // NOTE: resource is null when the document doesn't exist (first-time check).
+      // We must guard against that to avoid a null-dereference denial, which
+      // would also break transaction.get() inside markContentAsViewed() and
+      // prevent the one-time view record from ever being written.
+      allow read: if isAuthenticated() &&
+        (resource == null || resource.data.userId == request.auth.uid);
+
+      // Users can only create records for themselves.
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.viewed == true; // Must always write viewed=true
+
+      // Users can never delete or reset viewed records — that would allow re-access.
+      // Only admins can modify or delete (e.g. to manually reset for a student).
+      allow update, delete: if isAdmin();
+    }
+
+    // Community Chat rules
+    match /communityChat/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+        (isAdmin() || resource.data.senderId == request.auth.uid);
+      allow delete: if false;
+    }
+    
+    // Past Questions rules
+    match /pastQuestions/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+        (isAdmin() || resource.data.senderId == request.auth.uid);
+      allow delete: if false;
+    }
+    
+    // Content Updates rules (for course/module update notifications)
+    match /contentUpdates/{updateId} {
+      // Students can read their own updates
+      allow read: if isAuthenticated() && 
+        resource.data.notifiedUsers.hasAny([request.auth.uid]);
+      // Only cloud functions can create updates
+      allow create: if false;
+      // Students can update only to mark as seen
+      allow update: if isAuthenticated() && 
+        resource.data.notifiedUsers.hasAny([request.auth.uid]) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']);
+      // No deletion allowed
+      allow delete: if false;
+    }
+    
+    // CRITICAL: Subscriptions collection rules (REQUIRED for subscription validation)
+    match /subscriptions/{subscriptionId} {
+      // Users can read their own subscriptions
+      allow read: if isAuthenticated() && 
+                  (resource.data.userId == request.auth.uid || isAdmin());
+      // Only admins can create, update, or delete subscriptions
+      allow write: if isAdmin();
+    }
+    
+    // Subscription plans collection
+    match /subscriptionPlans/{planId} {
+      // All authenticated users can read subscription plans
+      allow read: if isAuthenticated();
+      // Only admins can create, update, or delete subscription plans
+      allow write: if isAdmin();
+    }
+    
+    // Login events collection
+    match /login_events/{eventId} {
+      allow create: if isAuthenticated();
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+    
+    // App configuration (version control, etc.)
+    // Allow all users to read app config (needed for version checking)
+    match /appConfig/{configId} {
+      allow read: if true;  // Anyone can read (even before authentication)
+      allow write: if isAdmin();
+    }
+    
+    // Pending deletions collection (30-day auto-delete tracking)
+    // Admins can read to see pending deletions in the UI
+    // Only Cloud Functions can write (via the admin wildcard below)
+    match /pendingDeletions/{userId} {
+      allow read: if isAdmin();
+      allow write: if false; // Cloud Functions use Admin SDK, bypasses rules
+    }
+    
+    // Deletion audit log (records of purged users)
+    // Admins can read for compliance/audit purposes
+    // Only Cloud Functions can write
+    match /deletionAuditLog/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Cloud Functions use Admin SDK, bypasses rules
+    }
+    
+    // Allow access to any remaining collections for admins
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

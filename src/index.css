@@ -1,0 +1,100 @@
+/* Google Fonts Inter loaded in index.html */
+:root {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light;
+  color: #151C27;
+  background-color: #F8FAFC;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Aptitude 4 Us Clinical Design Tokens */
+  --color-primary: #071A52;
+  --color-primary-dark: #051442;
+  --color-primary-light: #102462;
+  --color-accent-lime: #A7FF83;
+  --color-secondary-teal: #006B5F;
+  --color-teal-light: #10B981;
+  --color-bg-canvas: #F8FAFC;
+  --color-surface-card: #FFFFFF;
+  --color-border-subtle: #E2E8F0;
+  --color-text-primary: #071A52;
+  --color-text-body: #151C27;
+  --color-text-muted: #64748B;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #F8FAFC;
+  color: #151C27;
+  overflow-x: hidden;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  display: flex;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+a {
+  font-weight: 500;
+  color: #071A52;
+  text-decoration: none;
+  transition: color 0.15s ease-in-out;
+}
+a:hover {
+  color: #006B5F;
+}
+
+/* Accent Lime text selection */
+::selection {
+  background-color: #A7FF83;
+  color: #071A52;
+}
+
+/* Sleek custom scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 rgba(248, 250, 252, 0.5);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(248, 250, 252, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

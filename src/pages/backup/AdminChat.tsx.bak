@@ -1,0 +1,1973 @@
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+  Box,
+  Typography,
+  Paper,
+  TextField,
+  Button,
+  Divider,
+  IconButton,
+  CircularProgress,
+  Alert,
+  Avatar,
+  Select,
+  MenuItem,
+  FormControl,
+  SelectChangeEvent,
+  Checkbox,
+  Popover,
+  Snackbar,
+  Zoom
+} from '@mui/material';
+import {
+  Send as SendIcon,
+  Forum as ForumIcon,
+  EmojiEmotions as EmojiIcon,
+  Info as InfoIcon,
+  History as HistoryIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  People as PeopleIcon
+} from '@mui/icons-material';
+import { useAuth } from '../context/AuthContext';
+import './Chat.css';
+import {
+  Message,
+  sendDirectMessage,
+  sendBroadcastMessage,
+  sendCommunityMessage,
+  checkDatabaseConnectivity,
+} from '../services/messageService';
+import { getUsers } from '../services/userService';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { auth } from '../firebase/config';
+import { Virtuoso } from 'react-virtuoso';
+import { DocumentSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, startAfter, getDocs } from 'firebase/firestore';
+import { db } from '../firebase/config';
+
+// User interface for recipient selection
+interface UserOption {
+  id: string;
+  displayName: string;
+  email: string;
+  photoURL?: string | null;
+}
+
+// Extended Message interface to include additional properties
+interface ExtendedMessage extends Message {
+  isBroadcast?: boolean;
+  receiverName?: string;
+  read?: boolean;
+}
+
+// Chat mode type
+type ChatMode = 'broadcast' | 'direct' | 'community';
+
+// Admin Chat Component based on student app team schema
+const AdminChat: React.FC = () => {
+  // Auth state
+  const { currentUser } = useAuth();
+  
+  // Chat mode state
+  const [chatMode, setChatMode] = useState<ChatMode>('broadcast');
+  
+  // Message state
+  const [message, setMessage] = useState<string>('');
+  const [isBroadcast, setIsBroadcast] = useState<boolean>(true);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [userOptions, setUserOptions] = useState<UserOption[]>([]);
+  
+  // Unified message state
+  const [messageMap, setMessageMap] = useState<Map<string, Message>>(new Map());
+  const [pendingMessages, setPendingMessages] = useState<Map<string, Message>>(new Map());
+  
+  // Community chat state
+  const [communityMessageMap, setCommunityMessageMap] = useState<Map<string, Message>>(new Map());
+  const [communityPendingMessages, setCommunityPendingMessages] = useState<Map<string, Message>>(new Map());
+  const [communityLastVisible, setCommunityLastVisible] = useState<DocumentSnapshot | null>(null);
+  const [communityHasMoreMessages, setCommunityHasMoreMessages] = useState<boolean>(true);
+  const [communityIsLoadingMore, setCommunityIsLoadingMore] = useState<boolean>(false);
+  
+  // UI state
+  const [loading, setLoading] = useState<boolean>(true);
+  const [sending, setSending] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dbConnected, setDbConnected] = useState<boolean>(false);
+
+  // Pagination state
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState<boolean>(true);
+  const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(null);
+  const [initialLoadComplete, setInitialLoadComplete] = useState<boolean>(false);
+
+  // Refs
+  const textFieldRef = useRef<HTMLInputElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
+  const virtuosoRef = useRef<import('react-virtuoso').VirtuosoHandle>(null);
+  
+  // Add a search field to filter recipients
+  const [recipientSearch, setRecipientSearch] = useState<string>('');
+
+  // Emoji picker state
+  const [emojiAnchorEl, setEmojiAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const emojiPickerOpen = Boolean(emojiAnchorEl);
+
+  // Filter users based on search term
+  const filteredUserOptions = useMemo(() => {
+    if (!recipientSearch.trim()) return userOptions;
+    
+    const searchTerm = recipientSearch.toLowerCase();
+    return userOptions.filter(user => 
+      user.displayName.toLowerCase().includes(searchTerm) || 
+      user.email.toLowerCase().includes(searchTerm)
+    );
+  }, [userOptions, recipientSearch]);
+
+  // State for error snackbar
+  const [errorSnackbarOpen, setErrorSnackbarOpen] = useState<boolean>(false);
+
+  // User selection state
+  const [selectedUser] = useState<UserOption | null>({
+    id: 'ALL',
+    displayName: 'All Students',
+    email: '',
+    photoURL: null
+  });
+
+  // Track if user is at the bottom
+  const [isAtBottom, setIsAtBottom] = useState(true);
+
+  // Fetch messages as a fallback
+  const fetchAllMessages = useCallback(async () => {
+    try {
+      console.log("Fetching messages directly...");
+      setLoading(true);
+      
+      // Get most recent messages with pagination
+      const recentMessagesQuery = query(
+        collection(db, 'messages'),
+        orderBy('timestamp', 'desc'),
+        limit(30)
+      );
+      
+      const snapshot = await getDocs(recentMessagesQuery);
+      console.log(`Fetched ${snapshot.size} recent messages`);
+      
+      const newMessages = new Map<string, Message>();
+      
+      // Process all messages
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        
+        // Only include messages relevant to this admin
+        if (
+          currentUser && (
+            data.senderId === currentUser.uid || 
+            data.receiverId === 'ADMIN' || 
+            data.receiverId === 'ALL' ||
+            data.receiverId === 'admin' ||
+            data.receiverId === 'all' ||
+            data.receiverId === 'Admin' ||
+            data.receiverId === 'All'
+          )
+        ) {
+          // Convert timestamp to Date regardless of future dates
+          let messageTimestamp;
+          if (data.timestamp) {
+            messageTimestamp = data.timestamp?.toDate ? data.timestamp.toDate() : new Date();
+          } else {
+            messageTimestamp = new Date();
+          }
+          
+          newMessages.set(doc.id, {
+            id: doc.id,
+            ...data,
+            timestamp: messageTimestamp
+          } as Message);
+        }
+      });
+      
+      console.log(`Found ${newMessages.size} relevant messages`);
+      
+      // Update message map atomically
+      setMessageMap(prevMessages => {
+        const updatedMessages = new Map(prevMessages);
+        newMessages.forEach((msg, id) => {
+          updatedMessages.set(id, msg);
+        });
+        console.log(`Total messages in map after update: ${updatedMessages.size}`);
+        return updatedMessages;
+      });
+      
+      // Set hasMoreMessages to true since we're only loading a limited number
+      setHasMoreMessages(true);
+      
+      // If we have any messages, set the lastVisible document for pagination
+      if (snapshot.docs.length > 0) {
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      }
+      
+      setLoading(false);
+      setInitialLoadComplete(true);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      setLoading(false);
+      setInitialLoadComplete(true);
+    }
+  }, [currentUser]);
+
+  // Fetch community messages
+  const fetchCommunityMessages = useCallback(async () => {
+    try {
+      console.log("Fetching community messages directly...");
+      setLoading(true);
+      
+      // Get most recent messages with pagination
+      const recentMessagesQuery = query(
+        collection(db, 'communityChat'),
+        orderBy('timestamp', 'desc'),
+        limit(30)
+      );
+      
+      const snapshot = await getDocs(recentMessagesQuery);
+      console.log(`Fetched ${snapshot.size} community messages`);
+      
+      const newMessages = new Map<string, Message>();
+      
+      // Process all messages
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        
+        // Convert timestamp to Date regardless of future dates
+        let messageTimestamp;
+        if (data.timestamp) {
+          messageTimestamp = data.timestamp?.toDate ? data.timestamp.toDate() : new Date();
+        } else {
+          messageTimestamp = new Date();
+        }
+        
+        newMessages.set(doc.id, {
+          id: doc.id,
+          ...data,
+          timestamp: messageTimestamp
+        } as Message);
+      });
+      
+      console.log(`Found ${newMessages.size} community messages`);
+      
+      // Update community message map atomically
+      setCommunityMessageMap(prevMessages => {
+        const updatedMessages = new Map(prevMessages);
+        newMessages.forEach((msg, id) => {
+          updatedMessages.set(id, msg);
+        });
+        console.log(`Total community messages in map after update: ${updatedMessages.size}`);
+        return updatedMessages;
+      });
+      
+      // Set hasMoreMessages to true since we're only loading a limited number
+      setCommunityHasMoreMessages(true);
+      
+      // If we have any messages, set the lastVisible document for pagination
+      if (snapshot.docs.length > 0) {
+        setCommunityLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      }
+      
+      setLoading(false);
+      setInitialLoadComplete(true);
+    } catch (error) {
+      console.error("Error fetching community messages:", error);
+      setLoading(false);
+      setInitialLoadComplete(true);
+    }
+  }, []);
+
+  // Load more community messages
+  const loadMoreCommunityMessages = async () => {
+    try {
+      if (communityIsLoadingMore || !communityHasMoreMessages || !communityLastVisible) {
+        console.log("Cannot load more community messages:", { 
+          communityIsLoadingMore, 
+          communityHasMoreMessages, 
+          communityLastVisible: !!communityLastVisible 
+        });
+        return;
+      }
+      
+      setCommunityIsLoadingMore(true);
+      
+      // Query for older messages using the lastVisible document
+      const olderMessagesQuery = query(
+        collection(db, 'communityChat'),
+        orderBy('timestamp', 'desc'),
+        startAfter(communityLastVisible),
+        limit(20)
+      );
+      
+      const snapshot = await getDocs(olderMessagesQuery);
+      console.log(`Fetched ${snapshot.size} older community messages`);
+      
+      if (snapshot.empty) {
+        setCommunityHasMoreMessages(false);
+        setCommunityIsLoadingMore(false);
+        return;
+      }
+      
+      const newMessages = new Map<string, Message>();
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        let messageTimestamp;
+        if (data.timestamp) {
+          messageTimestamp = data.timestamp?.toDate ? data.timestamp.toDate() : new Date();
+        } else {
+          messageTimestamp = new Date();
+        }
+        newMessages.set(doc.id, {
+          id: doc.id,
+          ...data,
+          timestamp: messageTimestamp
+        } as Message);
+      });
+      
+      setCommunityMessageMap(prevMessages => {
+        const updatedMessages = new Map(prevMessages);
+        newMessages.forEach((msg, id) => {
+          updatedMessages.set(id, msg);
+        });
+        return updatedMessages;
+      });
+      
+      if (snapshot.docs.length > 0) {
+        setCommunityLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      }
+      setCommunityHasMoreMessages(snapshot.size >= 20);
+      setCommunityIsLoadingMore(false);
+
+      // After loading, scroll to the first message of the previous batch (now at index snapshot.size)
+      setTimeout(() => {
+        if (virtuosoRef.current) {
+          virtuosoRef.current.scrollToIndex({
+            index: snapshot.size,
+            behavior: 'auto'
+          });
+        }
+      }, 100);
+    } catch (error) {
+      console.error("Failed to load more community messages:", error);
+      setError("Failed to load more community messages");
+      setCommunityIsLoadingMore(false);
+    }
+  };
+
+  // Process messages for display
+  const sortedMessages = useMemo(() => {
+    console.log(`Processing ${messageMap.size} messages for display`);
+    // Combine messages from messageMap and pendingMessages
+    const allMessages: Message[] = [];
+    messageMap.forEach(msg => { allMessages.push(msg); });
+    pendingMessages.forEach(msg => { 
+      if (msg.id && !messageMap.has(msg.id)) { 
+        allMessages.push(msg); 
+      } 
+    });
+    // Sort messages by timestamp (oldest to newest for proper rendering)
+    const sorted = allMessages.sort((a, b) => {
+      const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : (a.timestamp as Timestamp).toDate().getTime();
+      const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : (b.timestamp as Timestamp).toDate().getTime();
+      return timeA - timeB;
+    });
+    console.log(`Sorted ${sorted.length} messages for display`);
+    if (sorted.length > 0) {
+      console.log("First message (oldest):", sorted[0]);
+      if (sorted.length > 1) { console.log("Second message:", sorted[1]); }
+      console.log("Last message (newest):", sorted[sorted.length - 1]);
+    }
+    return sorted;
+  }, [messageMap, pendingMessages]);
+
+  // Process community messages for display
+  const sortedCommunityMessages = useMemo(() => {
+    console.log(`Processing ${communityMessageMap.size} community messages for display`);
+    // Combine messages from communityMessageMap and communityPendingMessages
+    const allMessages: Message[] = [];
+    communityMessageMap.forEach(msg => { allMessages.push(msg); });
+    communityPendingMessages.forEach(msg => { 
+      if (msg.id && !communityMessageMap.has(msg.id)) { 
+        allMessages.push(msg); 
+      } 
+    });
+    // Sort messages by timestamp (oldest to newest for proper rendering)
+    const sorted = allMessages.sort((a, b) => {
+      const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : (a.timestamp as Timestamp).toDate().getTime();
+      const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : (b.timestamp as Timestamp).toDate().getTime();
+      return timeA - timeB;
+    });
+    console.log(`Sorted ${sorted.length} community messages for display`);
+    if (sorted.length > 0) {
+      console.log("First community message (oldest):", sorted[0]);
+      if (sorted.length > 1) { console.log("Second community message:", sorted[1]); }
+      console.log("Last community message (newest):", sorted[sorted.length - 1]);
+    }
+    return sorted;
+  }, [communityMessageMap, communityPendingMessages]);
+
+  // Get the active messages based on the chat mode
+  const activeMessages = useMemo(() => {
+    return chatMode === 'community' ? sortedCommunityMessages : sortedMessages;
+  }, [chatMode, sortedMessages, sortedCommunityMessages]);
+
+  // Get the active message flags for the virtuoso component
+  const messagesWithDateFlags = useMemo(() => {
+    return activeMessages.map((msg, idx) => {
+      const dateKey = getDateKey(msg);
+      let showDateSeparator = false;
+      
+      // Show separator if this is the first message or first with this date
+      if (idx === 0 || dateKey !== getDateKey(activeMessages[idx - 1])) {
+        showDateSeparator = true;
+      }
+      
+      return {
+        message: msg,
+        showDateSeparator
+      };
+    });
+  }, [activeMessages]);
+
+  // Track the index and id of the topmost visible message
+  const topIndexRef = useRef(0);
+  const topMessageIdRef = useRef<string | null>(null);
+
+  // Helper function to format message date for display
+  const formatMessageDate = (timestamp: Date | Timestamp | undefined) => {
+    if (!timestamp) return '';
+    
+    const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+  };
+
+  // Function to get date key for a message
+  const getDateKey = (msg: Message): string => {
+    if (!msg.timestamp) return '';
+    const date = msg.timestamp instanceof Date 
+      ? msg.timestamp 
+      : msg.timestamp.toDate();
+    return date.toDateString();
+  };
+
+  // Debounce function for smoother scrolling
+  const debounce = <F extends (...args: unknown[]) => unknown>(
+    func: F,
+    waitFor: number
+  ): ((...args: Parameters<F>) => void) => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    
+    return (...args: Parameters<F>): void => {
+      if (timeout !== null) {
+        clearTimeout(timeout);
+      }
+      timeout = setTimeout(() => func(...args), waitFor);
+    };
+  };
+
+  // Virtuoso rangeChanged handler to track top visible message
+  const handleRangeChanged = useCallback((range: { startIndex: number; endIndex: number }) => {
+    topIndexRef.current = range.startIndex;
+    const msg = activeMessages[range.startIndex];
+    topMessageIdRef.current = msg && msg.id ? msg.id : null;
+  }, [activeMessages]);
+
+  // Handle error snackbar close
+  const handleErrorSnackbarClose = () => {
+    setErrorSnackbarOpen(false);
+    setError(null);
+  };
+
+  // Effect to show error snackbar when error is set
+  useEffect(() => {
+    if (error) {
+      setErrorSnackbarOpen(true);
+    }
+  }, [error]);
+
+  // Check database connectivity on component mount
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Check database connectivity on component mount
+    const checkConnectivity = async () => {
+      try {
+        const result = await checkDatabaseConnectivity();
+        setDbConnected(result.connected);
+        
+        if (!result.connected) {
+          setError(`Database connectivity issue: ${result.error}`);
+        }
+      } catch (err) {
+        console.error('Error checking database connectivity:', err);
+        setDbConnected(false);
+        setError('Failed to connect to database');
+      }
+    };
+
+    // Fetch users for recipient selection
+    const fetchUsers = async () => {
+      try {
+        const users = await getUsers();
+        // Filter to only show students
+        const studentUsers = users
+          .filter(user => user.role === 'student')
+          .map(user => ({
+            id: user.uid,
+            displayName: user.displayName || 'Unknown User',
+            email: user.email || ''
+          }))
+          .sort((a, b) => a.displayName.localeCompare(b.displayName));
+        
+        setUserOptions(studentUsers);
+      } catch (err) {
+        console.error('Error fetching users:', err);
+        setError('Failed to load user list');
+      }
+    };
+    
+    // Check connectivity and fetch users
+    checkConnectivity();
+    fetchUsers();
+
+    // Set up a single unified listener for all messages
+    console.log(`Setting up unified message listener for admin ${currentUser.uid}`);
+    setLoading(true);
+    
+    // Add a delayed fetchAllMessages call as a fallback if listeners don't return anything
+    const fallbackTimer = setTimeout(() => {
+      setMessageMap(currentMap => {
+        if (currentMap.size === 0 && initialLoadComplete) {
+          console.log("No messages from listeners, using fallback");
+          fetchAllMessages();
+        }
+        return currentMap;
+      });
+    }, 3000);
+    
+    // Use a query that gets only the most recent messages
+    const messagesQuery = query(
+      collection(db, 'messages'),
+      orderBy('timestamp', 'desc'),
+      limit(30) // Only load the most recent 30 messages initially
+    );
+    
+    // Listen for all messages
+    const messagesUnsubscribe = onSnapshot(
+      messagesQuery,
+      (snapshot) => {
+        console.log(`Messages snapshot received: ${snapshot.docs.length} documents`);
+        const newMessages = new Map<string, Message>();
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          
+          // Only include messages relevant to this admin
+          if (
+            currentUser && (
+              data.senderId === currentUser.uid || 
+              data.receiverId === 'ADMIN' || 
+              data.receiverId === 'ALL' ||
+              data.receiverId === 'admin' ||
+              data.receiverId === 'all' ||
+              data.receiverId === 'Admin' ||
+              data.receiverId === 'All'
+            )
+          ) {
+            // Convert timestamp to Date regardless of future dates
+            let messageTimestamp;
+            if (data.timestamp) {
+              messageTimestamp = data.timestamp?.toDate ? data.timestamp.toDate() : new Date();
+            } else {
+              messageTimestamp = new Date();
+            }
+            
+            newMessages.set(doc.id, {
+              id: doc.id,
+              ...data,
+              timestamp: messageTimestamp
+            } as Message);
+          }
+        });
+        
+        console.log(`Found ${newMessages.size} relevant messages`);
+        
+        // Update message map atomically
+        setMessageMap(prevMessages => {
+          const updatedMessages = new Map(prevMessages);
+          newMessages.forEach((msg, id) => {
+            updatedMessages.set(id, msg);
+            
+            // Remove from pending if it exists
+            setPendingMessages(prev => {
+              const updated = new Map(prev);
+              updated.delete(id);
+              return updated;
+            });
+          });
+          console.log(`Total messages in map after update: ${updatedMessages.size}`);
+          return updatedMessages;
+        });
+        
+        // Set hasMoreMessages to true since we're only loading a limited number initially
+        setHasMoreMessages(true);
+        
+        // If we have any messages, set the lastVisible document for pagination
+        if (snapshot.docs.length > 0) {
+          setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+        }
+        
+        setLoading(false);
+        setInitialLoadComplete(true);
+      },
+      (error) => {
+        console.error('Messages listener error:', error);
+        setError('Error loading messages');
+        setLoading(false);
+      }
+    );
+
+    // Set up community chat listener
+    useEffect(() => {
+      if (!currentUser) return;
+
+      console.log(`Setting up community chat listener for admin ${currentUser.uid}`);
+      
+      // Use a query that gets only the most recent community messages
+      const communityMessagesQuery = query(
+        collection(db, 'communityChat'),
+        orderBy('timestamp', 'desc'),
+        limit(30) // Only load the most recent 30 messages initially
+      );
+      
+      // Listen for community messages
+      const communityMessagesUnsubscribe = onSnapshot(
+        communityMessagesQuery,
+        (snapshot) => {
+          console.log(`Community messages snapshot received: ${snapshot.docs.length} documents`);
+          const newMessages = new Map<string, Message>();
+          
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            
+            // Convert timestamp to Date regardless of future dates
+            let messageTimestamp;
+            if (data.timestamp) {
+              messageTimestamp = data.timestamp?.toDate ? data.timestamp.toDate() : new Date();
+            } else {
+              messageTimestamp = new Date();
+            }
+            
+            newMessages.set(doc.id, {
+              id: doc.id,
+              ...data,
+              timestamp: messageTimestamp
+            } as Message);
+          });
+          
+          console.log(`Found ${newMessages.size} community messages`);
+          
+          // Update community message map atomically
+          setCommunityMessageMap(prevMessages => {
+            const updatedMessages = new Map(prevMessages);
+            newMessages.forEach((msg, id) => {
+              updatedMessages.set(id, msg);
+              
+              // Remove from pending if it exists
+              setCommunityPendingMessages(prev => {
+                const updated = new Map(prev);
+                updated.delete(id);
+                return updated;
+              });
+            });
+            console.log(`Total community messages in map after update: ${updatedMessages.size}`);
+            return updatedMessages;
+          });
+          
+          // Set hasMoreMessages to true since we're only loading a limited number initially
+          setCommunityHasMoreMessages(true);
+          
+          // If we have any messages, set the lastVisible document for pagination
+          if (snapshot.docs.length > 0) {
+            setCommunityLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+          }
+        },
+        (error) => {
+          console.error('Community messages listener error:', error);
+          setError('Error loading community messages');
+        }
+      );
+
+      // Clean up on unmount
+      return () => {
+        communityMessagesUnsubscribe();
+      };
+    }, [currentUser]);
+
+    // Clean up on unmount
+    return () => {
+      messagesUnsubscribe();
+      clearTimeout(fallbackTimer);
+    };
+  }, [currentUser, fetchAllMessages, initialLoadComplete]);
+
+  // Check if we have any messages to display
+  const hasMessages = useMemo(() => {
+    const hasAny = activeMessages.length > 0;
+    console.log(`Has messages check: ${hasAny} (${activeMessages.length} messages)`);
+    return hasAny;
+  }, [activeMessages.length]);
+
+  // Update the debounced scroll to bottom function
+  const debouncedScrollToBottom = useMemo(() => 
+    debounce(() => {
+      if (virtuosoRef.current) {
+              virtuosoRef.current.scrollToIndex({
+        index: messagesWithDateFlags.length - 1,
+        behavior: 'smooth'
+      });
+        
+        // Set a small timeout to ensure isAtBottom is set to true after scrolling
+        setTimeout(() => {
+          setIsAtBottom(true);
+        }, 300);
+      }
+    }, 150), 
+  [messagesWithDateFlags.length]);
+
+  // Replace the existing scrollToBottom function with the debounced version
+  const scrollToBottom = useCallback(() => {
+    // Force isAtBottom to true first to prevent FAB from appearing during scroll
+    setIsAtBottom(true);
+    debouncedScrollToBottom();
+  }, [debouncedScrollToBottom]);
+
+  // Scroll to bottom when new messages arrive and user is at bottom
+  useEffect(() => {
+    if (isAtBottom && messagesWithDateFlags.length > 0 && !loading && !isLoadingMore) {
+      // Use a small timeout to ensure the UI has updated before scrolling
+      const timer = setTimeout(() => {
+        debouncedScrollToBottom();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [messagesWithDateFlags.length, loading, isLoadingMore, isAtBottom, debouncedScrollToBottom]);
+
+  // Format timestamp for display - WhatsApp style
+  const formatTime = useCallback((date: Date | undefined) => {
+    if (!date) return '';
+    
+    // WhatsApp only shows time in bubbles
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }, []);
+
+  // Add a CSS class for message bubbles to make them more compact
+  const MessageBubble = ({ isCurrentUser, children }: { isCurrentUser: boolean, children: React.ReactNode }) => (
+    <Paper 
+      elevation={1}
+      className={isCurrentUser ? 'message-bubble-outgoing' : 'message-bubble-incoming'}
+      sx={{ 
+        p: 0.8, // tighter padding
+        mt: 0,
+        display: 'inline-block',
+        minWidth: 'auto',
+        maxWidth: '100%',
+        wordBreak: 'break-word',
+        borderRadius: isCurrentUser ? '8px 8px 0 8px' : '8px 8px 8px 0',
+        boxShadow: '0 1px 0.5px rgba(0, 0, 0, 0.13)',
+        lineHeight: 1.4,
+        backgroundColor: isCurrentUser ? '#1976D2' : '#ffffff',
+        color: isCurrentUser ? '#ffffff' : 'inherit',
+        '& .message-timestamp': {
+          color: isCurrentUser ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)'
+        }
+      }}
+    >
+      {children}
+    </Paper>
+  );
+
+  // Message item component
+  const MessageItem = ({ 
+    msg, 
+    isCurrentUser, 
+    formatTime,
+    isPending = false
+  }: { 
+    msg: Message, 
+    isCurrentUser: boolean, 
+    formatTime: (date?: Date) => string,
+    isPending?: boolean
+  }) => {
+    console.log("Rendering MessageItem:", msg);
+    
+    // Safely handle timestamp conversion
+    let timestamp: Date;
+    try {
+      if (msg.timestamp instanceof Date) {
+        timestamp = msg.timestamp;
+      } else if (msg.timestamp?.toDate && typeof msg.timestamp.toDate === 'function') {
+        timestamp = msg.timestamp.toDate();
+      } else {
+        timestamp = new Date();
+      }
+    } catch (error) {
+      console.error('Error processing timestamp', error);
+      timestamp = new Date();
+    }
+    
+    const getRecipientName = (recipientId: string) => {
+      if (recipientId === 'ALL' || recipientId === 'all') return 'All';
+      const user = userOptions.find(u => u.id === recipientId);
+      return user ? user.displayName : recipientId;
+    };
+    
+    return (
+      <Box sx={{ 
+        width: '100%', 
+        p: 1, 
+        borderRadius: 1, 
+        mb: 1, 
+        backgroundColor: '#f8f9fa',
+        border: '1px solid #e0e0e0'
+      }}>
+        {/* Sender name for messages from others */}
+        {!isCurrentUser && (
+          <Typography 
+            variant="caption" 
+            color="text.secondary" 
+            sx={{ 
+              fontSize: '0.75rem',
+              fontWeight: 500, 
+              display: 'block',
+              mb: 0.1
+            }}
+          >
+            {msg.senderName || 'Unknown'}
+          </Typography>
+        )}
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: isCurrentUser ? 'row-reverse' : 'row',
+            alignItems: 'flex-end',
+            width: '100%',
+            gap: 0.3
+          }}
+        >
+          {/* Avatar for messages from others */}
+          {!isCurrentUser && (
+            <Avatar 
+              sx={{ 
+                bgcolor: '#1573fd',
+                width: 26,
+                height: 26,
+                fontSize: '0.7rem',
+                mr: 0.3
+              }}
+            >
+              {(msg.senderName?.charAt(0) || '?').toUpperCase()}
+            </Avatar>
+          )}
+          <Box sx={{ maxWidth: '70%', alignSelf: isCurrentUser ? 'flex-end' : 'flex-start' }}>
+            <MessageBubble isCurrentUser={isCurrentUser}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 1.5 }}>
+                <Typography 
+                  variant="body2" 
+                  className="message-content"
+                  sx={{ 
+                    mb: 0,
+                    minWidth: '2rem',
+                    display: 'inline-block',
+                    fontSize: '0.875rem',
+                    color: isCurrentUser ? '#ffffff' : 'inherit'
+                  }}
+                >
+                  {msg.text || ''}
+                </Typography>
+                <Box className="message-time-container" sx={{ display: 'flex', flexShrink: 0, alignSelf: 'flex-end', ml: 0.8, mb: '1px' }}>
+                  <Typography variant="caption" className="message-timestamp">
+                    {formatTime(timestamp)}
+                  </Typography>
+                  {isCurrentUser && (
+                    <Typography 
+                      variant="caption" 
+                      className="message-status" 
+                      sx={{ 
+                        color: isPending ? '#8696a0' : (isCurrentUser ? 'rgba(255, 255, 255, 0.7)' : '#53bdeb'), 
+                        ml: 0.2 
+                      }}
+                    >
+                      {isPending ? '⌛' : '✓✓'}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            </MessageBubble>
+            {isCurrentUser && msg.receiverId !== 'ALL' && msg.receiverId !== 'all' && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.1, fontSize: '0.6rem', textAlign: 'right', display: 'block' }}>
+                To: {getRecipientName(msg.receiverId)}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      </Box>
+    );
+  };
+
+  // Handle recipient selection change with proper type handling
+  const handleRecipientChange = (event: SelectChangeEvent<typeof selectedRecipients>) => {
+    const { target: { value } } = event;
+    
+    // When we get a string value, it's because the input was cleared
+    if (typeof value === 'string') {
+      setSelectedRecipients([]);
+      return;
+    }
+    
+    // Otherwise, use the array value directly
+    console.log('New recipients selection:', value);
+    setSelectedRecipients(value);
+  };
+
+  // Handle checkbox click in the MenuItem to manually control selection
+  const handleRecipientToggle = (recipientId: string) => {
+    console.log('Toggling recipient:', recipientId);
+    
+    setSelectedRecipients(current => {
+      // If already selected, remove it
+      if (current.includes(recipientId)) {
+        return current.filter(id => id !== recipientId);
+      }
+      // Otherwise add it
+      return [...current, recipientId];
+    });
+  };
+
+  // Handle message type change
+  const handleMessageTypeChange = (mode: ChatMode) => {
+    setChatMode(mode);
+    setIsBroadcast(mode === 'broadcast');
+    if (mode === 'broadcast') {
+      setSelectedRecipients([]);
+    }
+  };
+
+  // Handle sending a message
+  const handleSendMessage = useCallback(async () => {
+    if (!message.trim()) return;
+    if (!currentUser) {
+      setError('You must be logged in to send messages');
+      return;
+    }
+
+    // Check if recipients are selected for direct messages
+    if (chatMode === 'direct' && selectedRecipients.length === 0) {
+      setError('Please select at least one recipient');
+      return;
+    }
+
+    // Check database connectivity before sending
+    if (dbConnected === false) {
+      setError('Cannot send message: Database connection issue');
+      return;
+    }
+    
+    try {
+      setSending(true);
+      
+      // Try to verify database connection again
+      if (!dbConnected) {
+        const connectResult = await checkDatabaseConnectivity();
+        setDbConnected(connectResult.connected);
+        
+        if (!connectResult.connected) {
+          throw new Error(`Database connection failed: ${connectResult.error}`);
+        }
+      }
+      
+      // Send message based on chat mode
+      if (chatMode === 'broadcast') {
+        // Create optimistic broadcast message
+        const tempId = `temp_${Date.now()}_${Math.random()}`;
+        const optimisticMessage: ExtendedMessage = {
+          id: tempId,
+          senderId: currentUser.uid,
+          senderName: currentUser.displayName || 'Admin',
+          receiverId: 'ALL',
+          text: message,
+          timestamp: new Date(),
+          status: 'sending',
+          type: 'text',
+          isBroadcast: true
+        };
+        
+        // Add to pending messages
+        setPendingMessages(prev => new Map(prev).set(tempId, optimisticMessage));
+        
+        // Send the actual message
+        await sendBroadcastMessage(
+          message,
+          currentUser.uid,
+          currentUser.displayName || 'Admin'
+        );
+      } else if (chatMode === 'direct') {
+        // Send to each selected recipient with optimistic updates
+        await Promise.all(
+          selectedRecipients.map(async (recipientId) => {
+            // Create a unique temp ID for each message
+            const tempId = `temp_${Date.now()}_${recipientId}_${Math.random()}`;
+            const optimisticMessage: ExtendedMessage = {
+              id: tempId,
+              senderId: currentUser.uid,
+              senderName: currentUser.displayName || 'Admin',
+              receiverId: recipientId,
+              text: message,
+              timestamp: new Date(),
+              status: 'sending',
+              type: 'text'
+            };
+            
+            // Add to pending messages
+            setPendingMessages(prev => new Map(prev).set(tempId, optimisticMessage));
+            
+            // Send the actual message
+            await sendDirectMessage(
+              message,
+              currentUser.uid,
+              currentUser.displayName || 'Admin',
+              recipientId
+            );
+          })
+        );
+      } else if (chatMode === 'community') {
+        // Create optimistic community message
+        const tempId = `temp_${Date.now()}_community_${Math.random()}`;
+        const optimisticMessage: ExtendedMessage = {
+          id: tempId,
+          senderId: currentUser.uid,
+          senderName: currentUser.displayName || 'Admin',
+          receiverId: 'COMMUNITY',
+          text: message,
+          timestamp: new Date(),
+          status: 'sending',
+          type: 'text',
+          isCommunity: true
+        };
+        
+        // Add to pending messages
+        setCommunityPendingMessages(prev => new Map(prev).set(tempId, optimisticMessage));
+        
+        // Send the actual message
+        await sendCommunityMessage(
+          message,
+          currentUser.uid,
+          currentUser.displayName || 'Admin'
+        );
+      }
+      
+      // Clear input
+      setMessage('');
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setError(`Failed to send message: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setSending(false);
+      
+      // Focus back on text field
+      setTimeout(() => {
+        textFieldRef.current?.focus();
+      }, 100);
+    }
+  }, [message, chatMode, selectedRecipients, currentUser, dbConnected]);
+
+  // Handle key press for sending
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // Handle emoji click
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    setMessage(prev => prev + emojiData.emoji);
+    // Focus back on text field after emoji selection
+    setTimeout(() => {
+      textFieldRef.current?.focus();
+    }, 100);
+  };
+
+  // Open emoji picker
+  const handleEmojiButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setEmojiAnchorEl(event.currentTarget);
+  };
+
+  // Close emoji picker
+  const handleEmojiPickerClose = () => {
+    setEmojiAnchorEl(null);
+  };
+
+  // Update loadMoreMessages to scroll to the first message of the previous batch after loading
+  const loadMoreMessages = async () => {
+    try {
+      if (isLoadingMore || !hasMoreMessages || !lastVisible) {
+        console.log("Cannot load more messages:", { isLoadingMore, hasMoreMessages, lastVisible: !!lastVisible });
+        return;
+      }
+      
+      setIsLoadingMore(true);
+      
+      // Query for older messages using the lastVisible document
+      const olderMessagesQuery = query(
+        collection(db, 'messages'),
+        orderBy('timestamp', 'desc'),
+        startAfter(lastVisible),
+        limit(20)
+      );
+      
+      const snapshot = await getDocs(olderMessagesQuery);
+      console.log(`Fetched ${snapshot.size} older messages`);
+      
+      if (snapshot.empty) {
+        setHasMoreMessages(false);
+        setIsLoadingMore(false);
+        return;
+      }
+      
+      const newMessages = new Map<string, Message>();
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (
+          currentUser && (
+            data.senderId === currentUser.uid || 
+            data.receiverId === 'ADMIN' || 
+            data.receiverId === 'ALL' ||
+            data.receiverId === 'admin' ||
+            data.receiverId === 'all' ||
+            data.receiverId === 'Admin' ||
+            data.receiverId === 'All'
+          )
+        ) {
+          let messageTimestamp;
+          if (data.timestamp) {
+            messageTimestamp = data.timestamp?.toDate ? data.timestamp.toDate() : new Date();
+      } else {
+            messageTimestamp = new Date();
+          }
+          newMessages.set(doc.id, {
+            id: doc.id,
+            ...data,
+            timestamp: messageTimestamp
+          } as Message);
+        }
+      });
+      
+      setMessageMap(prevMessages => {
+        const updatedMessages = new Map(prevMessages);
+        newMessages.forEach((msg, id) => {
+          updatedMessages.set(id, msg);
+        });
+        return updatedMessages;
+      });
+      
+      if (snapshot.docs.length > 0) {
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      }
+      setHasMoreMessages(snapshot.size >= 20);
+      setIsLoadingMore(false);
+
+      // After loading, scroll to the first message of the previous batch (now at index snapshot.size)
+      setTimeout(() => {
+        if (virtuosoRef.current) {
+          virtuosoRef.current.scrollToIndex({
+            index: snapshot.size,
+            behavior: 'auto'
+          });
+        }
+      }, 100);
+    } catch (error) {
+      console.error("Failed to load more messages:", error);
+      setError("Failed to load more messages");
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Debug function to inspect message structure
+  useEffect(() => {
+    // Debug function to inspect message structure
+    const inspectMessageStructure = async () => {
+      try {
+        console.log("Inspecting message structure in Firestore...");
+        
+        // Get a sample of messages to inspect their structure
+        const sampleQuery = query(
+          collection(db, 'messages'),
+          limit(10)
+        );
+        
+        const snapshot = await getDocs(sampleQuery);
+        
+        if (snapshot.empty) {
+          console.log("No messages found in the database");
+          return;
+        }
+        
+        console.log(`Found ${snapshot.size} messages for inspection`);
+        
+        // Check message structure
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          console.log("Message structure:", {
+            id: doc.id,
+            senderId: data.senderId,
+            receiverId: data.receiverId,
+            timestamp: data.timestamp,
+            hasTimestamp: !!data.timestamp,
+            timestampType: data.timestamp ? typeof data.timestamp : 'undefined'
+          });
+        });
+        
+        // Check if we have the correct receiverId values
+        const adminMessages = query(
+          collection(db, 'messages'),
+          where('receiverId', '==', 'ADMIN'),
+          limit(5)
+        );
+        
+        const adminSnapshot = await getDocs(adminMessages);
+        console.log(`Found ${adminSnapshot.size} messages with receiverId='ADMIN'`);
+        
+        // Try a direct query for ALL messages
+        const allRecipientsQuery = query(
+          collection(db, 'messages'),
+          where('receiverId', '==', 'ALL'),
+          limit(50)
+        );
+        
+        const allRecipientsSnapshot = await getDocs(allRecipientsQuery);
+        console.log(`Found ${allRecipientsSnapshot.size} messages with receiverId=ALL`);
+        
+        // Try with lowercase variants
+        const adminLowerQuery = query(
+          collection(db, 'messages'),
+          where('receiverId', '==', 'admin'),
+          limit(50)
+        );
+        
+        const adminLowerSnapshot = await getDocs(adminLowerQuery);
+        console.log(`Found ${adminLowerSnapshot.size} messages with receiverId=admin (lowercase)`);
+        
+        const allLowerQuery = query(
+          collection(db, 'messages'),
+          where('receiverId', '==', 'all'),
+          limit(50)
+        );
+        
+        const allLowerSnapshot = await getDocs(allLowerQuery);
+        console.log(`Found ${allLowerSnapshot.size} messages with receiverId=all (lowercase)`);
+        
+        // Check if there are other receiverId values we should be checking
+        const allMessagesQuery = query(
+          collection(db, 'messages'),
+          limit(50)
+        );
+        
+        const allMessagesSnapshot = await getDocs(allMessagesQuery);
+        const receiverIds = new Set<string>();
+        
+        allMessagesSnapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.receiverId) {
+            receiverIds.add(data.receiverId);
+          }
+        });
+        
+        console.log("All receiverId values found:", Array.from(receiverIds));
+        
+      } catch (error) {
+        console.error("Error inspecting message structure:", error);
+      }
+    };
+    
+    // Run the inspection
+    if (currentUser) {
+      inspectMessageStructure();
+    }
+  }, [currentUser]);
+
+  // Ensure broadcast mode is set by default
+  useEffect(() => {
+    setIsBroadcast(true);
+  }, []);
+
+  // Debug function to inspect UI state
+  useEffect(() => {
+    console.log("UI State Debug:");
+    console.log("- Has messages:", hasMessages);
+    console.log("- Loading:", loading);
+    console.log("- Initial load complete:", initialLoadComplete);
+    console.log("- Message map size:", messageMap.size);
+    console.log("- Sorted messages length:", activeMessages.length);
+    console.log("- Is broadcast mode:", isBroadcast);
+    console.log("- Selected user:", selectedUser);
+  }, [hasMessages, loading, initialLoadComplete, messageMap.size, activeMessages.length, isBroadcast, selectedUser]);
+
+  // Add a scroll-to-bottom button component
+  const ScrollToBottomButton = ({ onClick, visible }: { onClick: () => void, visible: boolean }) => (
+    <Zoom in={visible}>
+      <Box
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+        sx={{
+          position: 'absolute',
+          bottom: 70,
+          right: 16,
+          zIndex: 100,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          backgroundColor: 'primary.main',
+          color: 'white',
+          boxShadow: '0 3px 5px rgba(0,0,0,0.2)',
+          transition: 'all 0.2s ease-in-out',
+          '&:hover': {
+            backgroundColor: 'primary.dark',
+            transform: 'scale(1.05)',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)'
+          },
+          pointerEvents: 'auto'
+        }}
+      >
+        <KeyboardArrowDownIcon />
+      </Box>
+    </Zoom>
+  );
+
+  // Render loading state
+  if (!currentUser) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <Alert severity="error">You must be logged in to access chat</Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ height: 'calc(100vh - 80px)', overflow: 'hidden', display: 'flex', flexDirection: 'column', p: 0, m: 0, position: 'relative' }}>
+      {/* Message type selector */}
+      <Box sx={{ 
+        mt: 0,
+        mb: 0, 
+        display: 'flex', 
+        gap: 1, 
+        alignItems: 'center', 
+        bgcolor: '#f0f2f5', 
+        borderRadius: 1, 
+        p: 0.5, 
+        pt: 0.3,
+        pb: 0.3,
+        justifyContent: 'space-between' 
+      }}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            variant={chatMode === 'broadcast' ? "contained" : "outlined"}
+            color="primary"
+            onClick={() => handleMessageTypeChange('broadcast')}
+            size="small"
+            sx={{ 
+              py: 0.3,
+              px: 1.5,
+              textTransform: 'none', 
+              borderRadius: '16px',
+              boxShadow: chatMode === 'broadcast' ? 1 : 0,
+              minHeight: '30px',
+              fontSize: '0.85rem'
+            }}
+          >
+            Broadcast
+          </Button>
+          <Button
+            variant={chatMode === 'direct' ? "contained" : "outlined"}
+            color="primary"
+            onClick={() => handleMessageTypeChange('direct')}
+            size="small"
+            sx={{ 
+              py: 0.3,
+              px: 1.5,
+              textTransform: 'none', 
+              borderRadius: '16px',
+              boxShadow: chatMode === 'direct' ? 1 : 0,
+              minHeight: '30px',
+              fontSize: '0.85rem'
+            }}
+          >
+            Direct Message
+          </Button>
+          <Button
+            variant={chatMode === 'community' ? "contained" : "outlined"}
+            color="primary"
+            onClick={() => handleMessageTypeChange('community')}
+            size="small"
+            sx={{ 
+              py: 0.3,
+              px: 1.5,
+              textTransform: 'none', 
+              borderRadius: '16px',
+              boxShadow: chatMode === 'community' ? 1 : 0,
+              minHeight: '30px',
+              fontSize: '0.85rem'
+            }}
+            startIcon={<PeopleIcon fontSize="small" />}
+          >
+            Community
+          </Button>
+        </Box>
+        
+        {/* Only show recipient dropdown when Direct Message is selected */}
+        {chatMode === 'direct' && (
+          <FormControl 
+            size="small"
+            sx={{ 
+              minWidth: 180, 
+              bgcolor: 'transparent',
+              '& .MuiInputBase-root': {
+                height: '30px',
+                fontSize: '0.85rem'
+              }
+            }}
+          >
+            <Select
+                displayEmpty
+              value={selectedRecipients}
+                multiple
+              onChange={handleRecipientChange}
+                renderValue={(selected) => {
+                  if (selected.length === 0) {
+                    return <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>Select recipients...</Typography>;
+                  }
+                  return `${selected.length} recipient${selected.length > 1 ? 's' : ''} selected`;
+                }}
+                sx={{ 
+                  borderRadius: '16px',
+                  bgcolor: '#fff',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'primary.main',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'primary.dark',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'primary.main',
+                  },
+                  height: '30px',
+                  py: 0.5,
+                  textTransform: 'none',
+                }}
+              MenuProps={{
+                PaperProps: {
+                  style: {
+                      maxHeight: 300,
+                    width: 250,
+                      borderRadius: 8
+                  },
+                  sx: {
+                    boxShadow: '0 2px 10px rgba(0, 0, 0, 0.15)',
+                    '& .MuiMenuItem-root': {
+                      py: 0.5,
+                      px: 1.5
+                    },
+                    '& .MuiCheckbox-root': {
+                      p: 0.5
+                    }
+                  }
+                },
+                anchorOrigin: {
+                  vertical: 'bottom',
+                  horizontal: 'left',
+                },
+                transformOrigin: {
+                  vertical: 'top',
+                  horizontal: 'left',
+                }
+              }}
+            >
+              {/* Search field at the top of dropdown */}
+              <Box sx={{ position: 'sticky', top: 0, bgcolor: 'background.paper', zIndex: 1, p: 1, pb: 0.5 }}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder="Search recipients..."
+                  value={recipientSearch}
+                  onChange={(e) => setRecipientSearch(e.target.value)}
+                  variant="outlined"
+                  InputProps={{
+                      sx: { 
+                        fontSize: '0.875rem', 
+                        borderRadius: '12px',
+                        height: '36px',
+                        '& .MuiOutlinedInput-input': {
+                          padding: '6px 10px'
+                        }
+                      }
+                  }}
+                  onClick={(e) => e.stopPropagation()} // Prevent dropdown from closing when clicking the search field
+                />
+              </Box>
+              <Divider sx={{ my: 0.5 }} />
+              
+              {filteredUserOptions.length === 0 ? (
+                <MenuItem disabled sx={{ fontSize: '0.875rem', fontStyle: 'italic', py: 0.5 }}>
+                  No matching recipients
+                </MenuItem>
+              ) : (
+                filteredUserOptions.map((user) => {
+                  const isSelected = selectedRecipients.includes(user.id);
+                  
+                  return (
+                    <MenuItem 
+                      key={user.id}
+                      value={user.id}
+                      sx={{ 
+                        fontSize: '0.875rem',
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 1,
+                        py: 0.5,
+                        px: 1.5,
+                        '&:hover': {
+                          bgcolor: 'rgba(25, 118, 210, 0.08)'
+                        }
+                      }}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleRecipientToggle(user.id);
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: isSelected ? 500 : 400 }}>{user.displayName}</Typography>
+                        <Typography variant="caption" color="text.secondary">{user.email}</Typography>
+                      </Box>
+                      <Checkbox 
+                        checked={isSelected}
+                        size="small"
+                        sx={{ p: 0.5 }}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => {
+                          event.stopPropagation();
+                          handleRecipientToggle(user.id);
+                        }}
+                      />
+                    </MenuItem>
+                  );
+                })
+              )}
+            </Select>
+          </FormControl>
+        )}
+      </Box>
+
+      {/* Error Snackbar */}
+      <Snackbar
+        open={errorSnackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleErrorSnackbarClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleErrorSnackbarClose} 
+          severity="error" 
+          variant="filled"
+          sx={{ 
+            py: 0.5, 
+            borderRadius: 1,
+            width: '100%',
+            fontSize: '0.85rem'
+          }}
+        >
+          {error}
+        </Alert>
+      </Snackbar>
+      
+      {/* Recipient selection reminder */}
+      <Snackbar
+        open={chatMode === 'direct' && selectedRecipients.length === 0}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{ 
+          position: 'fixed',
+          top: 'auto',
+          bottom: 'auto',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          marginTop: '45px',
+          zIndex: 1000,
+          width: 'auto',
+          '& .MuiPaper-root': {
+            backgroundColor: 'rgba(231, 242, 250, 0.95)', 
+            borderLeft: '4px solid #1976d2',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)'
+          }
+        }}
+      >
+        <Alert 
+          severity="info" 
+          icon={<Box sx={{ display: 'flex', alignItems: 'center' }}><InfoIcon fontSize="small" /></Box>}
+          sx={{ 
+            py: 0.5, 
+            borderRadius: 1,
+            width: '100%',
+            fontSize: '0.85rem'
+          }}
+        >
+          Please select at least one recipient to send a direct message
+        </Alert>
+      </Snackbar>
+      
+      {/* Main chat interface - WhatsApp style */}
+      <Paper 
+        elevation={2} 
+        sx={{ 
+          flexGrow: 1, 
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          borderRadius: '4px',
+          bgcolor: '#f0f2f5',
+          border: '1px solid #d1d7db',
+          height: '100%',
+          minHeight: 'unset',
+          maxHeight: 'unset',
+          m: 0, 
+          mt: 0.5,
+          p: 0,
+          position: 'relative' // Add position relative for absolute positioning of button
+        }}
+      >
+        {/* Chat header - WhatsApp style */}
+        <Box 
+          className="chat-header"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '10px 16px',
+            backgroundColor: '#f0f2f5',
+            borderBottom: '1px solid #e0e0e0',
+            minHeight: '60px'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Typography variant="subtitle1" fontWeight="500" sx={{ mr: 1 }}>
+                {chatMode === 'broadcast' ? 'Broadcast' : 
+                 chatMode === 'direct' ? 'Direct Messages' : 'Community Chat'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {chatMode === 'broadcast' ? 'Message to all students' : 
+                 chatMode === 'direct' ? 
+                  (selectedRecipients.length > 0 
+                    ? `${selectedRecipients.length} recipients selected` 
+                    : 'No recipients selected') :
+                  'Chat with all users'}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+        
+        {/* Messages list */}
+        <Box 
+          ref={messageListRef}
+          sx={{ 
+            flex: 1, 
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0 /* Important for flex children to prevent overflow */
+          }}
+          >
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress size={24} />
+              </Box>
+          ) : activeMessages.length === 0 ? (
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: 'column',
+                justifyContent: 'center', 
+                alignItems: 'center',
+                height: '100%'
+              }}>
+                <ForumIcon sx={{ fontSize: 48, color: '#8696a0', mb: 1 }} />
+                <Typography variant="body1" color="text.secondary">No messages yet</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {chatMode === 'broadcast' ? 'Send a broadcast message to all students' : 
+                   chatMode === 'direct' ? 'Select recipients and start a conversation' :
+                   'Start a conversation in the community chat'}
+                </Typography>
+              </Box>
+            ) : (
+            <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
+              <Virtuoso
+                ref={virtuosoRef}
+                style={{ height: '100%', width: '100%' }}
+                data={messagesWithDateFlags}
+                overscan={800}
+                increaseViewportBy={{ top: 800, bottom: 800 }}
+                firstItemIndex={Math.max(0, messagesWithDateFlags.length - 30)}
+                initialTopMostItemIndex={messagesWithDateFlags.length - 1}
+                defaultItemHeight={80}
+                followOutput={isAtBottom ? "smooth" : false}
+                atBottomStateChange={(bottom) => {
+                  console.log('At bottom:', bottom);
+                  // Only update if the state is changing to avoid unnecessary re-renders
+                  if (isAtBottom !== bottom) {
+                    setIsAtBottom(bottom);
+                  }
+                }}
+                alignToBottom={true}
+                rangeChanged={handleRangeChanged}
+                itemContent={(index, item) => {
+                  const message = item.message;
+                  const showDateSeparator = item.showDateSeparator;
+                  const isCurrentUser = Boolean(auth.currentUser && message.senderId === auth.currentUser.uid);
+                  
+                  const isNextMessageFromSameSender = index < messagesWithDateFlags.length - 1 && 
+                    messagesWithDateFlags[index + 1].message.senderId === message.senderId && 
+                    getDateKey(messagesWithDateFlags[index + 1].message) === getDateKey(message);
+                  
+                  return (
+                    <React.Fragment key={message.id || index}>
+                      {showDateSeparator && (
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'center', 
+                          py: 1,
+                          position: 'relative',
+                          mb: 0.5
+                        }}>
+                          <Box sx={{
+                            bgcolor: '#dbebfd',
+                            px: 2,
+                            py: 0.3,
+                            borderRadius: 4,
+                            zIndex: 1,
+                            boxShadow: '0 1px 0.5px rgba(0, 0, 0, 0.13)',
+                            fontSize: '0.75rem',
+                            color: '#54656f'
+                          }}>
+                            {formatMessageDate(message.timestamp)}
+                          </Box>
+                        </Box>
+                      )}
+                      <Box 
+                        sx={{ 
+                          mb: isNextMessageFromSameSender ? 0.1 : 0.6,
+                          px: 0.5
+                        }}
+                      >
+                        <MessageItem 
+                          msg={message} 
+                          isCurrentUser={isCurrentUser} 
+                          formatTime={formatTime} 
+                          isPending={message.id ? pendingMessages.has(message.id) : false}
+                        />
+          </Box>
+                    </React.Fragment>
+                  );
+                }}
+                components={{
+                  Header: () => (
+                    <div style={{ padding: '12px', textAlign: 'center' }}>
+                      {hasMoreMessages && !isLoadingMore && (
+                        <Button 
+                          onClick={loadMoreMessages} 
+                          variant="contained" 
+                          size="small"
+                          color="primary"
+                          startIcon={<HistoryIcon />}
+                          sx={{
+                            borderRadius: '18px',
+                            textTransform: 'none',
+                            boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+                            px: 2,
+                            py: 0.5,
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
+                            '&:hover': {
+                              backgroundColor: '#1565c0',
+                              boxShadow: '0 3px 6px rgba(0,0,0,0.15)',
+                            }
+                          }}
+                        >
+                          Load Previous Messages
+                        </Button>
+                      )}
+                      {isLoadingMore && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
+                          <CircularProgress size={20} />
+                          <Typography variant="body2" color="text.secondary">
+                            Loading messages...
+                          </Typography>
+                        </Box>
+                      )}
+                      {!hasMoreMessages && (
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary"
+                          sx={{
+                            backgroundColor: 'rgba(0,0,0,0.04)',
+                            py: 0.8,
+                            px: 2,
+                            borderRadius: '16px',
+                            display: 'inline-block'
+                          }}
+                        >
+                          No more messages
+                        </Typography>
+                      )}
+                    </div>
+                  )
+                }}
+              />
+            </div>
+          )}
+        </Box>
+
+        {/* Message input - WhatsApp style */}
+        <Box 
+          sx={{ 
+            p: 0.6,
+            display: 'flex', 
+            alignItems: 'center',
+            gap: 0.5,
+            backgroundColor: '#f0f2f5',
+            borderTop: '1px solid #e0e0e0',
+            position: 'relative',
+            zIndex: 10,
+            mt: 'auto'
+          }}
+          className="message-input-container"
+        >
+          <IconButton
+            onClick={handleEmojiButtonClick}
+            disabled={loading || sending || (chatMode !== 'broadcast' && selectedRecipients.length === 0)}
+            size="medium"
+            className={`emoji-button ${emojiPickerOpen ? 'active' : ''}`}
+            sx={{ mx: 0.3 }}
+          >
+            <EmojiIcon fontSize="small" />
+          </IconButton>
+          
+          <Popover
+            open={emojiPickerOpen}
+            anchorEl={emojiAnchorEl}
+            onClose={handleEmojiPickerClose}
+            anchorOrigin={{
+              vertical: 'top',
+              horizontal: 'left',
+            }}
+            transformOrigin={{
+              vertical: 'bottom',
+              horizontal: 'left',
+            }}
+          >
+            <EmojiPicker onEmojiClick={handleEmojiClick} />
+          </Popover>
+          
+          <TextField
+            fullWidth
+            placeholder={
+              chatMode === 'broadcast' ? "Type broadcast message..." : 
+              chatMode === 'direct' ? "Type direct message..." :
+              "Type community message..."
+            }
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            inputRef={textFieldRef}
+            variant="outlined"
+            disabled={loading || sending || (chatMode === 'direct' && selectedRecipients.length === 0)}
+            size="small"
+            className="message-input-field"
+            InputProps={{
+              className: "message-input",
+              sx: {
+                borderRadius: '24px',
+                py: 0.3,
+                px: 1
+              }
+            }}
+          />
+          
+          <IconButton
+            color="primary"
+            className="send-button"
+            onClick={handleSendMessage}
+            disabled={
+              !message.trim() || 
+              loading || 
+              sending || 
+              (chatMode === 'direct' && selectedRecipients.length === 0)
+            }
+            sx={{ ml: 0.3 }}
+          >
+            {sending ? (
+              <CircularProgress size={18} color="inherit" />
+            ) : (
+              <SendIcon fontSize="small" />
+            )}
+          </IconButton>
+        </Box>
+      </Paper>
+      
+      {/* Update the scroll button container to have proper pointer-events handling */}
+      <Box sx={{ 
+        position: 'fixed', 
+        bottom: 70, 
+        right: 16, 
+        zIndex: 1000, 
+        pointerEvents: 'none',
+        '& > *': {
+          pointerEvents: 'auto'
+        }
+      }}>
+        <ScrollToBottomButton 
+          onClick={scrollToBottom} 
+          visible={!isAtBottom && messagesWithDateFlags.length > 0} 
+        />
+      </Box>
+    </Box>
+  );
+};
+
+export default AdminChat; 
