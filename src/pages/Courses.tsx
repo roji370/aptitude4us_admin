@@ -138,10 +138,11 @@ const Courses: React.FC = () => {
 
     setCreating(true);
     try {
-      const courseId = await createCourse(newCourse);
-      const validation = validateId(courseId, 'course');
-      if (!validation.isValid) {
-        setIdValidationWarning(validation.error || 'Course ID contains unusual characters.');
+      const createdCourse = await createCourse(newCourse);
+      const courseId = createdCourse.id;
+      const validation = validateId(courseId);
+      if (!validation.valid) {
+        setIdValidationWarning(validation.message || 'Course ID contains unusual characters.');
       }
       handleCloseDialog();
       const updatedCourses = await getCourses();
@@ -153,6 +154,7 @@ const Courses: React.FC = () => {
       setCreating(false);
     }
   };
+
 
   const handleTogglePin = async (courseId: string, event: React.MouseEvent) => {
     event.stopPropagation();
