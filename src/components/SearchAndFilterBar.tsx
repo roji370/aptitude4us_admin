@@ -90,7 +90,7 @@ const SearchAndFilterBar: React.FC<SearchAndFilterBarProps> = ({
                   </InputAdornment>
                 ),
                 sx: {
-                  borderRadius: 2,
+                  borderRadius: 2.4,
                   fontSize: '0.84375rem',
                   backgroundColor: '#F8FAFC',
                 },

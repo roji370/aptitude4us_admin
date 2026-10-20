@@ -461,7 +461,7 @@ const UserDetail: React.FC = () => {
           icon={<DeleteForeverIcon />}
           sx={{ mb: 2, border: '2px solid', borderColor: 'error.main' }}
           action={
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Button
                 color="inherit"
                 size="small"
@@ -556,7 +556,7 @@ const UserDetail: React.FC = () => {
       )}
       
       {/* Header with back button, user info, and action buttons */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <IconButton 
             onClick={handleBackClick} 
@@ -582,7 +582,7 @@ const UserDetail: React.FC = () => {
             </Typography>
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           {(user?.role === 'student' || user?.role === 'admin') && (
             <Button 
               variant="contained"

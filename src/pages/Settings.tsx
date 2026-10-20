@@ -287,7 +287,7 @@ const Settings: React.FC = () => {
           <Divider sx={{ mb: 3, borderColor: '#F1F5F9' }} />
           
           <List disablePadding>
-            <ListItem sx={{ px: 1 }}>
+            <ListItem sx={{ px: 1, flexWrap: 'wrap', gap: 1 }}>
               <ListItemText
                 primary="Change Password"
                 secondary="Update your account password"
@@ -306,7 +306,7 @@ const Settings: React.FC = () => {
             
             <Divider sx={{ my: 1.5 }} />
             
-            <ListItem sx={{ px: 1 }}>
+            <ListItem sx={{ px: 1, flexWrap: 'wrap', gap: 1 }}>
               <ListItemText
                 primary="Delete Account"
                 secondary="Permanently delete your account and all associated data"
@@ -339,7 +339,7 @@ const Settings: React.FC = () => {
             <Divider sx={{ mb: 3, borderColor: '#F1F5F9' }} />
             
             <List disablePadding>
-              <ListItem sx={{ px: 1 }}>
+              <ListItem sx={{ px: 1, flexWrap: 'wrap', gap: 1 }}>
                 <ListItemText
                   primary={<Typography sx={{ fontWeight: 600, color: '#071A52' }}>Sync Custom Claims</Typography>}
                   secondary="Update Firebase authentication claims for all users based on their roles in the database"
