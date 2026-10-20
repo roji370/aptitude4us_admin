@@ -86,7 +86,7 @@ const courseConverter = {
       title: course.title,
       description: course.description,
       category: course.category,
-      thumbnailUrl: course.thumbnailUrl,
+      thumbnailUrl: course.thumbnailUrl || '',
       isActive: course.isActive,
       isPublished: course.isPublished,
       isPinned: course.isPinned || false,
@@ -240,6 +240,7 @@ export const createCourse = async (courseData: Omit<Course, 'id' | 'createdAt' |
   try {
     const course = {
       ...courseData,
+      thumbnailUrl: courseData.thumbnailUrl || '', // Firestore rejects undefined values
       // Ensure both fields are set for new courses
       isActive: courseData.isActive !== undefined ? courseData.isActive : true,
       isPublished: courseData.isPublished !== undefined ? courseData.isPublished : courseData.isActive !== undefined ? courseData.isActive : true,

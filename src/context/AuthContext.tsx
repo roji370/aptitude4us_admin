@@ -33,7 +33,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false); // Changed to false by default
+  const [loading, setLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [assignedCourseIds, setAssignedCourseIds] = useState<string[]>([]);
   const [customClaims, setCustomClaims] = useState<Record<string, unknown> | null>(null);
@@ -49,38 +49,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     console.log("Auth effect starting - only handling token changes, no automatic login");
     
-    // Listen specifically for token changes to get custom claims
-    // This keeps the token fresh but doesn't automatically log the user in
-    const unsubscribeToken = onIdTokenChanged(auth, async (firebaseUser) => {
-      console.log("Token changed event fired");
-      if (firebaseUser && currentUser) { // Only update for signed-in users
-        try {
-          console.log("Getting token result for user:", firebaseUser.uid);
-          const tokenResult = await firebaseUser.getIdTokenResult();
-          console.log("Token claims received:", tokenResult.claims);
-          setCustomClaims(tokenResult.claims as Record<string, unknown>);
-          
-          // Use claims directly for role and access
-          if (tokenResult.claims.role === 'admin') {
-            console.log("Admin role found in claims");
-            setIsAdmin(true);
+    let unsubscribeToken: (() => void) | null = null;
+
+    try {
+      // Listen specifically for token changes to get custom claims
+      // This keeps the token fresh but doesn't automatically log the user in
+      unsubscribeToken = onIdTokenChanged(auth, async (firebaseUser) => {
+        console.log("Token changed event fired");
+        if (firebaseUser && currentUser) { // Only update for signed-in users
+          try {
+            console.log("Getting token result for user:", firebaseUser.uid);
+            const tokenResult = await firebaseUser.getIdTokenResult();
+            console.log("Token claims received:", tokenResult.claims);
+            setCustomClaims(tokenResult.claims as Record<string, unknown>);
+            
+            // Use claims directly for role and access
+            if (tokenResult.claims.role === 'admin') {
+              console.log("Admin role found in claims");
+              setIsAdmin(true);
+            }
+            
+            if (tokenResult.claims.assignedCourseIds) {
+              console.log("Assigned courses found in claims:", tokenResult.claims.assignedCourseIds);
+              setAssignedCourseIds(tokenResult.claims.assignedCourseIds as string[]);
+            }
+          } catch (error) {
+            console.error('Error getting token claims:', error);
           }
-          
-          if (tokenResult.claims.assignedCourseIds) {
-            console.log("Assigned courses found in claims:", tokenResult.claims.assignedCourseIds);
-            setAssignedCourseIds(tokenResult.claims.assignedCourseIds as string[]);
-          }
-        } catch (error) {
-          console.error('Error getting token claims:', error);
+        } else if (!firebaseUser) {
+          console.log("No user in token changed event");
+          setCustomClaims(null);
         }
-      } else if (!firebaseUser) {
-        console.log("No user in token changed event");
-        setCustomClaims(null);
-      }
-    });
+      });
+    } catch (error) {
+      console.warn('Firebase auth listener failed:', error);
+    }
 
     return () => {
-      unsubscribeToken();
+      if (unsubscribeToken) unsubscribeToken();
     };
   }, [currentUser]); // Only re-run when currentUser changes
 
@@ -159,4 +165,4 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}; 
+};

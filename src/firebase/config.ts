@@ -27,4 +27,4 @@ export const messaging = typeof window !== 'undefined' && 'serviceWorker' in nav
   ? getMessaging(app)
   : null;
 
-export default app; 
+export default app;

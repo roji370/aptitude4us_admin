@@ -9,7 +9,7 @@ import {
   Alert,
   InputAdornment,
   IconButton,
-  CircularProgress,
+  CircularProgress
 } from '@mui/material';
 import {
   Visibility,
@@ -17,12 +17,13 @@ import {
   Email,
   Lock,
   School as SchoolIcon,
-  Shield as ShieldIcon,
+  Shield as ShieldIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { signInWithEmail, isAdmin } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import { styled } from '@mui/material/styles';
+import { initializeMessaging, cleanupAllTokensExceptCurrent } from '../services/fcmService';
 import { logUserLogin } from '../services/userService';
 
 const LoginContainer = styled(Box)(() => ({
@@ -79,25 +80,52 @@ const Login: React.FC = () => {
         return;
       }
 
+      // Sign in with Firebase Authentication
       const user = await signInWithEmail(email, password);
 
-      if (user && (await isAdmin(user.uid))) {
+      // Check if user is an admin
+      if (user && await isAdmin(user.uid)) {
+        // Set user in context
         setUserAfterLogin(user);
 
+        // Log the user login and update last login time
         try {
+          console.log("Attempting to update user login timestamp...");
           const deviceInfo = `${navigator.userAgent}`;
-          await logUserLogin(user.uid, 'Web Admin Console', deviceInfo);
-        } catch (logErr) {
-          console.warn('Login logging non-fatal:', logErr);
+          await logUserLogin(user.uid, "browser", deviceInfo);
+          console.log("User login timestamp updated successfully");
+        } catch (loginLogError) {
+          console.warn("Failed to log user login (non-critical):", loginLogError);
+        }
+
+        // Initialize FCM messaging (non-blocking)
+        try {
+          const fcmToken = await initializeMessaging(user.uid);
+          if (user.uid) {
+            if (fcmToken) { cleanupAllTokensExceptCurrent(fcmToken, user.uid).catch(console.warn); }
+          }
+        } catch (fcmError) {
+          console.warn("FCM initialization failed (non-critical):", fcmError);
         }
 
         navigate('/dashboard');
       } else {
-        setError('Access denied: Administrator privileges required.');
+        setError('Access denied. This portal is restricted to administrators.');
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message || 'Invalid credentials. Please verify and try again.');
+      // Map Firebase error codes to user-friendly messages
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password. Please try again.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Too many failed attempts. Please try again later.');
+      } else if (err.code === 'auth/network-request-failed') {
+        setError('Network error. Please check your internet connection.');
+      } else if (err.message?.includes('DEVICE_RESTRICTED')) {
+        setError('This account is restricted to a specific device. Please contact your administrator.');
+      } else {
+        setError(err.message || 'Invalid credentials. Please verify and try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -251,7 +279,7 @@ const Login: React.FC = () => {
           }}
         >
           <ShieldIcon sx={{ fontSize: 15, color: '#006B5F' }} />
-          <span>RCSI Exam Portal • Proctor Security v2.4.0</span>
+          <span>Aptitude 4 Us • Admin Portal v1.0.0</span>
         </Box>
       </LoginCard>
     </LoginContainer>

@@ -43,9 +43,13 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     }
     
     // Get the token
-    // Replace with your actual VAPID key from Firebase Console
+    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+    if (!vapidKey) {
+      console.warn('VAPID key not configured — skipping FCM token request');
+      return null;
+    }
     const token = await getToken(messaging, {
-      vapidKey: "BHblemqxT0lmvPXUWAv4C0inJhQopT-T5ftbG5W1Hrde01P5g6SfCrBpnm2N6q6oUODFWDazXcqvtWkgpK4azu4"
+      vapidKey
     });
     
     if (token) {
@@ -241,9 +245,12 @@ export const initializeMessaging = async (userId: string): Promise<string | null
     if (Notification.permission === 'granted') {
       try {
         // Get the token directly
-        const token = await getToken(messaging, {
-          vapidKey: "BHblemqxT0lmvPXUWAv4C0inJhQopT-T5ftbG5W1Hrde01P5g6SfCrBpnm2N6q6oUODFWDazXcqvtWkgpK4azu4"
-        });
+        const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+        if (!vapidKey) {
+          console.warn('VAPID key not configured — skipping FCM token request');
+          return null;
+        }
+        const token = await getToken(messaging, { vapidKey });
         
         if (token) {
           try {
@@ -496,7 +503,7 @@ export const getMultipleUsersFCMTokens = async (userIds: string[]): Promise<FCMT
 export const subscribeTopic = async (token: string, topic: string): Promise<void> => {
   try {
     // Use the deployed function URL directly
-    const functionBaseUrl = 'https://us-central1-course-c18bb.cloudfunctions.net';
+    const functionBaseUrl = 'https://us-central1-apt4us-afb04.cloudfunctions.net';
     
     console.log(`Subscribing to topic ${topic} with URL: ${functionBaseUrl}/subscribeToTopic`);
     
@@ -531,7 +538,7 @@ export const subscribeTopic = async (token: string, topic: string): Promise<void
 export const unsubscribeTopic = async (token: string, topic: string): Promise<void> => {
   try {
     // Use the deployed function URL directly
-    const functionBaseUrl = 'https://us-central1-course-c18bb.cloudfunctions.net';
+    const functionBaseUrl = 'https://us-central1-apt4us-afb04.cloudfunctions.net';
     
     console.log(`Unsubscribing from topic ${topic} with URL: ${functionBaseUrl}/unsubscribeFromTopic`);
     
