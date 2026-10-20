@@ -59,6 +59,7 @@ const StyledAppBar = styled(AppBar)(({ theme }) => ({
   backdropFilter: 'blur(12px)',
   boxShadow: '0 1px 3px rgba(7, 26, 82, 0.04)',
   borderBottom: '1px solid #E2E8F0',
+  borderRadius: 0,
   color: '#071A52',
   zIndex: theme.zIndex.drawer + 1,
   transition: theme.transitions.create(['width', 'margin'], {
@@ -69,7 +70,7 @@ const StyledAppBar = styled(AppBar)(({ theme }) => ({
 
 const SearchWrapper = styled('div')(({ theme }) => ({
   position: 'relative',
-  borderRadius: 12,
+  borderRadius: 14,
   backgroundColor: '#F1F5F9',
   border: '1px solid #E2E8F0',
   '&:hover': {
@@ -308,7 +309,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               fontSize: '0.6875rem',
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
-              color: 'rgba(191, 219, 254, 0.45)',
+              color: 'rgba(255, 255, 255, 0.55)',
             }}
           >
             Administration
@@ -338,7 +339,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                       px: 1.5,
                       borderRadius: '10px',
                       backgroundColor: isActive ? 'rgba(255, 255, 255, 0.10)' : 'transparent',
-                      color: isActive ? '#FFFFFF' : 'rgba(226, 232, 240, 0.75)',
+                      color: isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.85)',
                       transition: 'all 0.15s ease-in-out',
                       display: 'flex',
                       alignItems: 'center',
@@ -355,17 +356,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                       <ListItemIcon
                         sx={{
                           minWidth: 0,
-                          color: isActive ? '#A7FF83' : 'rgba(191, 219, 254, 0.6)',
+                          color: isActive ? '#A7FF83' : 'rgba(255, 255, 255, 0.9)',
                         }}
                       >
                         {item.icon}
                       </ListItemIcon>
                       <ListItemText
                         primary={item.text}
-                        primaryTypographyProps={{
-                          fontSize: '0.84375rem',
-                          fontWeight: isActive ? 600 : 500,
-                          color: 'inherit',
+                        sx={{
+                          '& .MuiListItemText-primary': {
+                            fontSize: '0.84375rem',
+                            fontWeight: isActive ? 600 : 500,
+                            color: isActive ? '#FFFFFF !important' : 'rgba(255, 255, 255, 0.85) !important',
+                          },
                         }}
                       />
                     </Box>
@@ -416,7 +419,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       {/* Bottom System Engine Card */}
       <Box sx={{ p: 2, m: 1.5, borderRadius: 3, backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.10)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-          <Typography variant="caption" sx={{ color: 'rgba(191, 219, 254, 0.7)', fontWeight: 500 }}>
+          <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.75)', fontWeight: 500 }}>
             System Engine
           </Typography>
           <Chip
@@ -432,7 +435,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             }}
           />
         </Box>
-        <Typography variant="caption" sx={{ display: 'block', color: 'rgba(191, 219, 254, 0.5)', fontSize: '0.6875rem' }}>
+        <Typography variant="caption" sx={{ display: 'block', color: 'rgba(255, 255, 255, 0.55)', fontSize: '0.6875rem' }}>
           RCSI Exam Portal • Production
         </Typography>
         <Divider sx={{ my: 1, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
@@ -446,7 +449,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               display: 'flex',
               alignItems: 'center',
               gap: 0.75,
-              color: 'rgba(191, 219, 254, 0.8)',
+              color: 'rgba(255, 255, 255, 0.85)',
               fontSize: '0.6875rem',
               fontWeight: 600,
               '&:hover': { color: '#A7FF83' },
@@ -455,7 +458,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <HelpIcon sx={{ fontSize: 14 }} />
             Support Center
           </Box>
-          <ArrowOutwardIcon sx={{ fontSize: 13, color: 'rgba(191, 219, 254, 0.6)' }} />
+          <ArrowOutwardIcon sx={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.65)' }} />
         </Box>
       </Box>
     </Box>
@@ -690,6 +693,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             boxSizing: 'border-box',
             width: DRAWER_WIDTH,
             borderRight: '1px solid #102462',
+            borderRadius: 0,
           },
         }}
       >
@@ -705,6 +709,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             boxSizing: 'border-box',
             width: DRAWER_WIDTH,
             borderRight: '1px solid #102462',
+            borderRadius: 0,
             boxShadow: '4px 0 24px rgba(7, 26, 82, 0.08)',
           },
         }}
@@ -719,6 +724,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         sx={{
           flexGrow: 1,
           width: { lg: `calc(100% - ${DRAWER_WIDTH}px)` },
+          ml: { lg: `${DRAWER_WIDTH}px` },
           minHeight: '100vh',
           backgroundColor: '#F8FAFC',
           pt: '68px', // offset for top appbar
