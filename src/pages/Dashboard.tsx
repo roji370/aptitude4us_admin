@@ -633,7 +633,7 @@ const Dashboard: React.FC = () => {
                   alignItems: 'center',
                   backgroundColor: '#F8FAFC',
                   border: '1px solid #E2E8F0',
-                  borderRadius: 2,
+                  borderRadius: 2.4,
                   px: 1,
                   py: 0.25,
                   width: { xs: '100%', sm: 160 },
@@ -679,8 +679,8 @@ const Dashboard: React.FC = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Candidate</TableCell>
-                  <TableCell>Track / Course</TableCell>
-                  <TableCell>Status</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Track / Course</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Status</TableCell>
                   <TableCell align="right">Admitted</TableCell>
                 </TableRow>
               </TableHead>
@@ -689,8 +689,8 @@ const Dashboard: React.FC = () => {
                   [...Array(4)].map((_, i) => (
                     <TableRow key={i}>
                       <TableCell><Skeleton width={120} /></TableCell>
-                      <TableCell><Skeleton width={100} /></TableCell>
-                      <TableCell><Skeleton width={60} /></TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}><Skeleton width={100} /></TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}><Skeleton width={60} /></TableCell>
                       <TableCell align="right"><Skeleton width={50} /></TableCell>
                     </TableRow>
                   ))
@@ -733,7 +733,7 @@ const Dashboard: React.FC = () => {
                         </Box>
                       </TableCell>
 
-                      <TableCell sx={{ py: 1.5 }}>
+                      <TableCell sx={{ py: 1.5, display: { xs: 'none', sm: 'table-cell' } }}>
                         <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8125rem', color: '#151C27' }}>
                           RCSI Aptitude Prep
                         </Typography>
@@ -742,7 +742,7 @@ const Dashboard: React.FC = () => {
                         </Typography>
                       </TableCell>
 
-                      <TableCell sx={{ py: 1.5 }}>
+                      <TableCell sx={{ py: 1.5, display: { xs: 'none', sm: 'table-cell' } }}>
                         {user.status === 'active' ? (
                           <Chip
                             label="Active"
@@ -939,7 +939,7 @@ const Dashboard: React.FC = () => {
                       >
                         {course.title}
                       </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.75, color: '#64748B', fontSize: '0.71875rem' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.75, color: '#64748B', fontSize: '0.71875rem', flexWrap: 'wrap' }}>
                         <span>{course.modulesCount} Modules</span>
                         <span>•</span>
                         <span style={{ fontWeight: 600, color: '#071A52' }}>{course.studentsCount} Candidates</span>

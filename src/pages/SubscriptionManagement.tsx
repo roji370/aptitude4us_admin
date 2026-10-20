@@ -867,7 +867,7 @@ const SubscriptionManagement: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2, mb: 3 }}>
         <Typography variant="h4" component="h1">
           Manage Subscriptions
         </Typography>
@@ -890,7 +890,7 @@ const SubscriptionManagement: React.FC = () => {
       
       {/* Tabs */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs value={tabValue} onChange={handleTabChange} aria-label="subscription management tabs">
+        <Tabs value={tabValue} onChange={handleTabChange} aria-label="subscription management tabs" variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
           <Tab label="Active Subscriptions" icon={<CreditCardIcon />} iconPosition="start" />
           <Tab label="Plan Management" icon={<EditIcon />} iconPosition="start" />
           <Tab label="Bulk Operations" icon={<GroupIcon />} iconPosition="start" />
@@ -947,16 +947,16 @@ const SubscriptionManagement: React.FC = () => {
         
         {/* Subscriptions Table */}
         <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-          <TableContainer>
+          <TableContainer sx={{ overflowX: 'auto' }}>
             <Table stickyHeader aria-label="subscriptions table">
               <TableHead>
                 <TableRow>
                   <TableCell>Student</TableCell>
-                  <TableCell>Email</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Email</TableCell>
                   <TableCell>Plan</TableCell>
-                  <TableCell>Start Date</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Start Date</TableCell>
                   <TableCell>End Date</TableCell>
-                  <TableCell>Exam Date</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Exam Date</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
@@ -1006,11 +1006,11 @@ const SubscriptionManagement: React.FC = () => {
                           <TableCell onClick={() => navigate(`/users/${subscription.userId}`)}>
                             {subscription.userName}
                           </TableCell>
-                          <TableCell>{subscription.userEmail}</TableCell>
+                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{subscription.userEmail}</TableCell>
                           <TableCell>{subscription.planName}</TableCell>
-                          <TableCell>{startDate.toLocaleDateString()}</TableCell>
+                          <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{startDate.toLocaleDateString()}</TableCell>
                           <TableCell>{endDate.toLocaleDateString()}</TableCell>
-                          <TableCell>
+                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                             {examDate ? (
                               <Chip 
                                 label={examDate.toLocaleDateString()} 

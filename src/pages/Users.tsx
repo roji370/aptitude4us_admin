@@ -274,7 +274,7 @@ const Users: React.FC = () => {
                     <SearchIcon sx={{ color: '#94A3B8', fontSize: 20 }} />
                   </InputAdornment>
                 ),
-                sx: { borderRadius: 2, fontSize: '0.84375rem', backgroundColor: '#F8FAFC' },
+                sx: { borderRadius: 2.4, fontSize: '0.84375rem', backgroundColor: '#F8FAFC' },
               },
             }}
           />
@@ -372,15 +372,15 @@ const Users: React.FC = () => {
             overflow: 'hidden',
           }}
         >
-          <TableContainer>
+          <TableContainer sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell>User</TableCell>
                   <TableCell>Role</TableCell>
-                  <TableCell>Last Active</TableCell>
-                  <TableCell>Assigned Curricula</TableCell>
-                  <TableCell>DRM Binding</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Last Active</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Assigned Curricula</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>DRM Binding</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -449,19 +449,19 @@ const Users: React.FC = () => {
                       </TableCell>
 
                       {/* Last Login */}
-                      <TableCell sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem' }}>
+                      <TableCell sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem', display: { xs: 'none', md: 'table-cell' } }}>
                         {formatDate(user.lastLogin)}
                       </TableCell>
 
                       {/* Assigned Courses */}
-                      <TableCell sx={{ py: 1.5 }}>
+                      <TableCell sx={{ py: 1.5, display: { xs: 'none', lg: 'table-cell' } }}>
                         <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8125rem', color: '#151C27' }}>
                           {user.assignedCourseIds?.length || 0} Curricula
                         </Typography>
                       </TableCell>
 
                       {/* Device Restriction Switch */}
-                      <TableCell sx={{ py: 1.5 }}>
+                      <TableCell sx={{ py: 1.5, display: { xs: 'none', md: 'table-cell' } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <FormControlLabel
                             control={

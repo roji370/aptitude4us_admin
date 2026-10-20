@@ -379,7 +379,7 @@ const ViolationsDashboard: React.FC<ViolationsDashboardProps> = ({
                   <SearchIcon sx={{ color: '#94A3B8', fontSize: 19 }} />
                 </InputAdornment>
               ),
-              sx: { borderRadius: 2, fontSize: '0.84375rem', backgroundColor: '#F8FAFC' },
+              sx: { borderRadius: 5, fontSize: '0.84375rem', backgroundColor: '#F8FAFC' },
             },
           }}
         />
@@ -396,16 +396,16 @@ const ViolationsDashboard: React.FC<ViolationsDashboardProps> = ({
           overflow: 'hidden',
         }}
       >
-        <TableContainer>
+        <TableContainer sx={{ overflowX: 'auto' }}>
           <Table size="small">
             <TableHead>
               <TableRow>
                 <TableCell>Candidate</TableCell>
                 <TableCell align="center">Strikes</TableCell>
                 <TableCell align="center">DRM Status</TableCell>
-                <TableCell align="center">First Flag</TableCell>
-                <TableCell align="center">Suspended At</TableCell>
-                <TableCell align="center">Last Reset</TableCell>
+                <TableCell align="center" sx={{ display: { xs: 'none', md: 'table-cell' } }}>First Flag</TableCell>
+                <TableCell align="center" sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Suspended At</TableCell>
+                <TableCell align="center" sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Last Reset</TableCell>
                 <TableCell align="right">Resolution</TableCell>
               </TableRow>
             </TableHead>
@@ -465,15 +465,15 @@ const ViolationsDashboard: React.FC<ViolationsDashboardProps> = ({
                         {getStatusChip(v.status)}
                       </TableCell>
 
-                      <TableCell align="center" sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem' }}>
+                      <TableCell align="center" sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem', display: { xs: 'none', md: 'table-cell' } }}>
                         {formatDate(v.firstViolation)}
                       </TableCell>
 
-                      <TableCell align="center" sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem' }}>
+                      <TableCell align="center" sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem', display: { xs: 'none', lg: 'table-cell' } }}>
                         {formatDate(v.blockedAt)}
                       </TableCell>
 
-                      <TableCell align="center" sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem' }}>
+                      <TableCell align="center" sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem', display: { xs: 'none', lg: 'table-cell' } }}>
                         {formatDate(v.lastReset)}
                       </TableCell>
 

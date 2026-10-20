@@ -1295,7 +1295,7 @@ const CourseDetail: React.FC = () => {
       )}
       
       {/* Header with back button and course title */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1.5 }}>
         <Button 
           variant="outlined" 
           startIcon={<ArrowBackIcon />}
@@ -1319,7 +1319,7 @@ const CourseDetail: React.FC = () => {
           {course?.title}
         </Typography>
         {isAdmin && (
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap' }}>
             <Button 
               variant="outlined" 
               startIcon={<GroupIcon />}
@@ -1375,7 +1375,7 @@ const CourseDetail: React.FC = () => {
 
       {/* Course info */}
       <Paper elevation={0} sx={{ p: 3.5, mb: 4, borderRadius: '16px', border: '1px solid #E2E8F0', bgcolor: '#FFFFFF' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
         <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#071A52' }}>
           {course?.category}
           {isAdmin && (
