@@ -396,22 +396,17 @@
   width: 6px !important;
 }
 
-html, body {
+/* Chat-page-only body lock — applied via .chat-page-active class on <body> */
+body.chat-page-active {
   overflow: hidden !important;
   height: 100vh !important;
-  margin: 0 !important;
-  padding: 0 !important;
   max-height: 100vh !important;
   min-height: 100vh !important;
-  box-sizing: border-box !important;
 }
 
-/* Also ensure the root container doesn't overflow */
-#root {
+body.chat-page-active #root {
   height: 100vh !important;
   overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
 }
 
 /* Reply feature styles */

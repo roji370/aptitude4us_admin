@@ -689,6 +689,14 @@ const AdminChat: React.FC = () => {
     setError(null);
   };
 
+  // Lock body scroll only while chat page is mounted
+  useEffect(() => {
+    document.body.classList.add('chat-page-active');
+    return () => {
+      document.body.classList.remove('chat-page-active');
+    };
+  }, []);
+
   // Effect to show error snackbar when error is set
   useEffect(() => {
     if (error) {
@@ -2347,7 +2355,7 @@ const AdminChat: React.FC = () => {
   }
 
   return (
-    <Box sx={{ height: 'calc(100vh - 80px)', overflow: 'hidden', display: 'flex', flexDirection: 'column', p: 0, m: 0, position: 'relative' }}>
+    <Box sx={{ height: { xs: 'calc(100vh - 88px)', sm: 'calc(100vh - 96px)', md: 'calc(100vh - 100px)' }, overflow: 'hidden', display: 'flex', flexDirection: 'column', p: 0, m: 0, position: 'relative' }}>
       {/* Message type selector */}
       <Box sx={{ 
         mt: 0,
@@ -2355,6 +2363,7 @@ const AdminChat: React.FC = () => {
         display: 'flex', 
         gap: 1, 
         alignItems: 'center', 
+        flexWrap: 'wrap',
         bgcolor: '#f0f2f5', 
         borderRadius: 1, 
         p: 0.5, 
@@ -2362,7 +2371,7 @@ const AdminChat: React.FC = () => {
         pb: 0.3,
         justifyContent: 'space-between' 
       }}>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 1 }, flexWrap: 'wrap' }}>
         <Button
             variant={chatMode === 'broadcast' ? "contained" : "outlined"}
           color="primary"
@@ -2370,12 +2379,12 @@ const AdminChat: React.FC = () => {
           size="small"
             sx={{ 
               py: 0.3,
-              px: 1.5,
+              px: { xs: 1, sm: 1.5 },
               textTransform: 'none', 
               borderRadius: '16px',
               boxShadow: chatMode === 'broadcast' ? 1 : 0,
               minHeight: '30px',
-              fontSize: '0.85rem'
+              fontSize: { xs: '0.75rem', sm: '0.85rem' }
             }}
         >
           Broadcast
@@ -2387,12 +2396,12 @@ const AdminChat: React.FC = () => {
           size="small"
             sx={{ 
               py: 0.3,
-              px: 1.5,
+              px: { xs: 1, sm: 1.5 },
               textTransform: 'none', 
               borderRadius: '16px',
               boxShadow: chatMode === 'direct' ? 1 : 0,
               minHeight: '30px',
-              fontSize: '0.85rem'
+              fontSize: { xs: '0.75rem', sm: '0.85rem' }
             }}
         >
           Direct Message
@@ -2404,12 +2413,12 @@ const AdminChat: React.FC = () => {
             size="small"
             sx={{ 
               py: 0.3,
-              px: 1.5,
+              px: { xs: 1, sm: 1.5 },
               textTransform: 'none', 
               borderRadius: '16px',
               boxShadow: chatMode === 'community' ? 1 : 0,
               minHeight: '30px',
-              fontSize: '0.85rem',
+              fontSize: { xs: '0.75rem', sm: '0.85rem' },
               backgroundColor: chatMode === 'community' ? '#071A52' : 'transparent',
               color: chatMode === 'community' ? 'white' : '#071A52',
               borderColor: '#071A52',
@@ -2429,12 +2438,12 @@ const AdminChat: React.FC = () => {
           size="small"
           sx={{ 
             py: 0.3,
-            px: 1.5,
+            px: { xs: 1, sm: 1.5 },
             textTransform: 'none', 
             borderRadius: '16px',
             boxShadow: chatMode === 'pastQuestions' ? 1 : 0,
             minHeight: '30px',
-            fontSize: '0.85rem',
+            fontSize: { xs: '0.75rem', sm: '0.85rem' },
             backgroundColor: chatMode === 'pastQuestions' ? '#071A52' : 'transparent',
             color: chatMode === 'pastQuestions' ? 'white' : '#071A52',
             borderColor: '#071A52',
@@ -2454,7 +2463,7 @@ const AdminChat: React.FC = () => {
         <FormControl 
           size="small"
             sx={{ 
-              minWidth: 180, 
+              minWidth: { xs: 140, sm: 180 }, 
               bgcolor: 'transparent',
               '& .MuiInputBase-root': {
                 height: '30px',
@@ -2529,7 +2538,7 @@ const AdminChat: React.FC = () => {
                 slotProps={{ input: {
                     sx: { 
                       fontSize: '0.875rem', 
-                      borderRadius: '12px',
+                      borderRadius: '14px',
                       height: '36px',
                       '& .MuiOutlinedInput-input': {
                         padding: '6px 10px'
