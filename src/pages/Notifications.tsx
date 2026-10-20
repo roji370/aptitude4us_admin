@@ -346,7 +346,7 @@ const Notifications: React.FC = () => {
         </Typography>
         
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: 1.5 }}>
             <Typography>
               Push Notifications: {notificationPermission === 'granted' ? 'Enabled' : 'Disabled'}
             </Typography>
@@ -476,7 +476,7 @@ const Notifications: React.FC = () => {
 
       <Paper sx={{ width: '100%', mb: 2 }}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tabValue} onChange={handleTabChange} aria-label="notification tabs">
+          <Tabs value={tabValue} onChange={handleTabChange} aria-label="notification tabs" variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
             <Tab label="All Notifications" />
             <Tab label="Chat" icon={<ChatIcon />} iconPosition="start" />
             <Tab label="Announcements" icon={<AnnouncementIcon />} iconPosition="start" />
@@ -486,14 +486,14 @@ const Notifications: React.FC = () => {
         </Box>
         
         <TabPanel value={tabValue} index={0}>
-          <TableContainer>
+          <TableContainer sx={{ overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>Type</TableCell>
                   <TableCell>Title</TableCell>
-                  <TableCell>Message</TableCell>
-                  <TableCell>Recipients</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Message</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Recipients</TableCell>
                   <TableCell>Sent At</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
@@ -517,8 +517,8 @@ const Notifications: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell>{notification.title}</TableCell>
-                      <TableCell>{notification.body}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{notification.body}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                         {notification.recipients && notification.recipients.length > 0 
                           ? `${notification.recipients.length} recipient(s)` 
                           : 'Broadcast'
@@ -542,13 +542,13 @@ const Notifications: React.FC = () => {
         </TabPanel>
         
         <TabPanel value={tabValue} index={1}>
-          <TableContainer>
+          <TableContainer sx={{ overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>Title</TableCell>
-                  <TableCell>Message</TableCell>
-                  <TableCell>Recipients</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Message</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Recipients</TableCell>
                   <TableCell>Sent At</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
@@ -564,8 +564,8 @@ const Notifications: React.FC = () => {
                   notifications.map((notification) => (
                     <TableRow key={notification.id}>
                       <TableCell>{notification.title}</TableCell>
-                      <TableCell>{notification.body}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{notification.body}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                         {notification.recipients && notification.recipients.length > 0 
                           ? `${notification.recipients.length} recipient(s)` 
                           : 'Broadcast'
@@ -591,13 +591,13 @@ const Notifications: React.FC = () => {
         {/* Similar TabPanels for other notification types (index 2, 3, 4) */}
         {[2, 3, 4].map((index) => (
           <TabPanel key={index} value={tabValue} index={index}>
-            <TableContainer>
+            <TableContainer sx={{ overflowX: 'auto' }}>
               <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell>Title</TableCell>
-                    <TableCell>Message</TableCell>
-                    <TableCell>Recipients</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Message</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Recipients</TableCell>
                     <TableCell>Sent At</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
@@ -613,8 +613,8 @@ const Notifications: React.FC = () => {
                     notifications.map((notification) => (
                       <TableRow key={notification.id}>
                         <TableCell>{notification.title}</TableCell>
-                        <TableCell>{notification.body}</TableCell>
-                        <TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{notification.body}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                           {notification.recipients && notification.recipients.length > 0 
                             ? `${notification.recipients.length} recipient(s)` 
                             : 'Broadcast'
