@@ -235,10 +235,17 @@ exports.setCustomClaims = onCall({
 
       while (retries > 0 && !success) {
         try {
-          // Set custom claims
-          await admin.auth().setCustomUserClaims(userId, claims);
+          // IMPORTANT: Merge new claims with existing claims.
+          // setCustomUserClaims() replaces ALL claims, so we must
+          // read existing claims first and merge to avoid wiping
+          // out the 'role' claim (or other claims) when updating
+          // only assignedCourseIds, for example.
+          const existingClaims = user.customClaims || {};
+          const mergedClaims = { ...existingClaims, ...claims };
+          
+          await admin.auth().setCustomUserClaims(userId, mergedClaims);
           success = true;
-          logger.info(`Custom claims set for user ${userId}`);
+          logger.info(`Custom claims merged and set for user ${userId}. Previous: ${JSON.stringify(existingClaims)}, New: ${JSON.stringify(mergedClaims)}`);
         } catch (claimsError) {
           if (retries > 1) {
             logger.warn(`Failed to set custom claims, retrying (${retries - 1} attempts left): ${claimsError.message}`);
