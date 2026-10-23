@@ -7,21 +7,27 @@ service firebase.storage {
       return request.auth != null;
     }
     
+    // Admin check: tries custom claims first (zero Firestore reads),
+    // falls back to Firestore lookup if claims are missing/stale.
+    // The Firestore fallback uses 2 reads but is only needed until
+    // all admin users have their role claim properly set.
     function isAdmin() {
-      return isAuthenticated() && 
-        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
-        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' ||
+        (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
     }
     
     // Check if user is assigned to a specific course - checks both custom claims AND Firestore
     // NOTE: Storage rules rely on course assignment. The admin app must remove course assignments
     // when subscriptions expire to ensure storage access is properly revoked.
     function isAssignedToCourse(courseId) {
-      // Check custom claims first (faster)
+      // Check custom claims first (faster, zero Firestore reads)
       let hasClaimAccess = request.auth.token.assignedCourseIds != null && 
                           request.auth.token.assignedCourseIds.hasAny([courseId]);
       
-      // If no claim access, check Firestore document
+      // If no claim access, check Firestore document (uses 2 reads)
       let hasDocumentAccess = firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
                              firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.assignedCourseIds != null &&
                              firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.assignedCourseIds.hasAny([courseId]);
