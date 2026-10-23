@@ -348,6 +348,13 @@ const theme = createTheme({
         },
       },
     },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          fontSize: '0.875rem',
+        },
+      },
+    },
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
@@ -366,8 +373,47 @@ const theme = createTheme({
           },
         },
         input: {
-          padding: '10px 14px',
+          padding: '14px 14px',
           fontSize: '0.875rem',
+        },
+        inputSizeSmall: {
+          padding: '8.5px 14px',
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        select: {
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: '1.4375em',
+          padding: '14px 14px',
+          fontSize: '0.875rem',
+        },
+        outlined: {
+          '&.MuiSelect-outlined': {
+            display: 'flex',
+            alignItems: 'center',
+          },
+        },
+      },
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        root: {
+          '&.MuiInputBase-sizeSmall': {
+            '& .MuiSelect-select': {
+              padding: '8.5px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              minHeight: '1.4375em',
+            },
+          },
+        },
+        input: {
+          '&::placeholder': {
+            opacity: 0.6,
+          },
         },
       },
     },
