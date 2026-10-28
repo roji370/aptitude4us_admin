@@ -1,15 +1,20 @@
 {
-  "short_name": "Admin Dashboard",
-  "name": "Admin Dashboard",
+  "short_name": "Aptitude4Us Admin",
+  "name": "Aptitude 4 Us - Admin Portal",
   "icons": [
     {
-      "src": "vite.svg",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/svg+xml"
+      "src": "logo192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#0D2B3E",
+  "background_color": "#0D2B3E"
 }
