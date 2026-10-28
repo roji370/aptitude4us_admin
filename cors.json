@@ -4,7 +4,9 @@
       "http://localhost:5175",
       "http://localhost:5174",
       "http://localhost:5173",
-      "http://localhost:3000"
+      "http://localhost:3000",
+      "https://apt4us-afb04.web.app",
+      "https://apt4us-afb04.firebaseapp.com"
     ],
     "method": ["GET", "HEAD", "OPTIONS"],
     "maxAgeSeconds": 3600,

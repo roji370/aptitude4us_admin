@@ -594,7 +594,7 @@ exports.deleteUser = onCall({
  */
 exports.triggerConsolidatedCourseAssignmentNotification = onCall(
   {
-    cors: ["http://localhost:5173", "http://localhost:5174"], // TODO: Add new client's production URL
+    cors: ["http://localhost:5173", "http://localhost:5174", "https://apt4us-afb04.web.app"], // TODO: Add Netlify/production URL when ready
     enforceAppCheck: false, // Set to true in production
     cpu: 0.5,
     memory: "256MiB"
