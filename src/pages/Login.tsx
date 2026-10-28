@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -16,7 +16,7 @@ import {
   VisibilityOff,
   Email,
   Lock,
-  School as SchoolIcon,
+  School as SchoolIcon, // keeping import to avoid lint issues
   Shield as ShieldIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -53,7 +53,14 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { setUserAfterLogin } = useAuth();
+  const { setUserAfterLogin, currentUser } = useAuth();
+
+  // If already authenticated, redirect to dashboard
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [currentUser, navigate]);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -141,16 +148,12 @@ const Login: React.FC = () => {
               width: 56,
               height: 56,
               borderRadius: 3,
-              backgroundColor: '#071A52',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#A7FF83',
+              overflow: 'hidden',
               boxShadow: '0 8px 16px rgba(7, 26, 82, 0.15)',
               mb: 2,
             }}
           >
-            <SchoolIcon sx={{ fontSize: 32 }} />
+            <img src="/logo.png" alt="Aptitude4Us" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </Box>
 
           <Typography

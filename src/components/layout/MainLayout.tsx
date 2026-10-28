@@ -261,15 +261,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               width: 38,
               height: 38,
               borderRadius: 2,
-              backgroundColor: 'rgba(167, 255, 131, 0.15)',
-              border: '1px solid rgba(167, 255, 131, 0.3)',
+              overflow: 'hidden',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#A7FF83',
             }}
           >
-            <SchoolIcon sx={{ fontSize: 22 }} />
+            <img src="/logo.png" alt="Aptitude4Us" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </Box>
           <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <Typography
