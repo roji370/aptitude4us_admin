@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "../aptitude4us_app"
 		}
 	],
 	"settings": {}
