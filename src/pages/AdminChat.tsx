@@ -81,7 +81,7 @@ interface UserOption {
   role?: string;
 }
 
-// Extended Message interface to include additional properties
+// Extended Message interface to include additional properties (used for type-checking message display)
 interface ExtendedMessage extends Message {
   isBroadcast?: boolean;
   receiverName?: string;
@@ -141,18 +141,15 @@ const AdminChat: React.FC = () => {
   
   // Unified message state
   const [messageMap, setMessageMap] = useState<Map<string, Message>>(new Map());
-  const [pendingMessages, setPendingMessages] = useState<Map<string, Message>>(new Map());
   
   // Community chat state
   const [communityMessageMap, setCommunityMessageMap] = useState<Map<string, Message>>(new Map());
-  const [communityPendingMessages, setCommunityPendingMessages] = useState<Map<string, Message>>(new Map());
   const [communityLastVisible, setCommunityLastVisible] = useState<DocumentSnapshot | null>(null);
   const [communityHasMoreMessages, setCommunityHasMoreMessages] = useState<boolean>(true);
   const [communityIsLoadingMore, setCommunityIsLoadingMore] = useState<boolean>(false);
   
   // Past Questions chat state
   const [pastQuestionsMessageMap, setPastQuestionsMessageMap] = useState<Map<string, Message>>(new Map());
-  const [pastQuestionsPendingMessages, setPastQuestionsPendingMessages] = useState<Map<string, Message>>(new Map());
   const [pastQuestionsLastVisible, setPastQuestionsLastVisible] = useState<DocumentSnapshot | null>(null);
   const [pastQuestionsHasMoreMessages, setPastQuestionsHasMoreMessages] = useState<boolean>(true);
   const [pastQuestionsIsLoadingMore, setPastQuestionsIsLoadingMore] = useState<boolean>(false);
@@ -540,14 +537,8 @@ const AdminChat: React.FC = () => {
   // Process messages for display
   const sortedMessages = useMemo(() => {
     console.log(`Processing ${messageMap.size} messages for display`);
-    // Combine messages from messageMap and pendingMessages
     const allMessages: Message[] = [];
     messageMap.forEach(msg => { allMessages.push(msg); });
-    pendingMessages.forEach(msg => { 
-      if (msg.id && !messageMap.has(msg.id)) { 
-        allMessages.push(msg); 
-      } 
-    });
     // Sort messages by timestamp (oldest to newest for proper rendering)
     const sorted = allMessages.sort((a, b) => {
       const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : (a.timestamp as Timestamp).toDate().getTime();
@@ -561,19 +552,13 @@ const AdminChat: React.FC = () => {
       console.log("Last message (newest):", sorted[sorted.length - 1]);
     }
     return sorted;
-  }, [messageMap, pendingMessages]);
+  }, [messageMap]);
 
   // Process community messages for display
   const sortedCommunityMessages = useMemo(() => {
     console.log(`Processing ${communityMessageMap.size} community messages for display`);
-    // Combine messages from communityMessageMap and communityPendingMessages
     const allMessages: Message[] = [];
     communityMessageMap.forEach(msg => { allMessages.push(msg); });
-    communityPendingMessages.forEach(msg => { 
-      if (msg.id && !communityMessageMap.has(msg.id)) { 
-        allMessages.push(msg); 
-      } 
-    });
     // Sort messages by timestamp (oldest to newest for proper rendering)
     const sorted = allMessages.sort((a, b) => {
       const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : (a.timestamp as Timestamp).toDate().getTime();
@@ -587,18 +572,13 @@ const AdminChat: React.FC = () => {
       console.log("Last community message (newest):", sorted[sorted.length - 1]);
     }
     return sorted;
-  }, [communityMessageMap, communityPendingMessages]);
+  }, [communityMessageMap]);
 
   // Process past questions messages for display
   const sortedPastQuestionsMessages = useMemo(() => {
     console.log(`Processing ${pastQuestionsMessageMap.size} past questions messages for display`);
     const allMessages: Message[] = [];
     pastQuestionsMessageMap.forEach(msg => { allMessages.push(msg); });
-    pastQuestionsPendingMessages.forEach(msg => { 
-      if (msg.id && !pastQuestionsMessageMap.has(msg.id)) { 
-        allMessages.push(msg); 
-      } 
-    });
     
     const sorted = allMessages.sort((a, b) => {
       const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : a.timestamp?.toDate?.()?.getTime?.() || 0;
@@ -607,7 +587,7 @@ const AdminChat: React.FC = () => {
     });
     console.log(`Sorted ${sorted.length} past questions messages for display`);
     return sorted;
-  }, [pastQuestionsMessageMap, pastQuestionsPendingMessages]);
+  }, [pastQuestionsMessageMap]);
 
   // Get the active messages based on the chat mode
   const activeMessages = useMemo(() => {
@@ -734,7 +714,7 @@ const AdminChat: React.FC = () => {
         // Try to get a single document from the collection
         const q = query(
           collection(db, 'communityChat'),
-          where('text', '==', 'Welcome to Student Details! This is where admins and students can interact together.'),
+          where('text', '==', 'Welcome to Community Chat! This is where admins and students can interact together.'),
           limit(1)
         );
         const snapshot = await getDocs(q);
@@ -854,13 +834,6 @@ const AdminChat: React.FC = () => {
           const updatedMessages = new Map(prevMessages);
           newMessages.forEach((msg, id) => {
             updatedMessages.set(id, msg);
-            
-            // Remove from pending if it exists
-            setPendingMessages(prev => {
-              const updated = new Map(prev);
-              updated.delete(id);
-              return updated;
-            });
           });
           console.log(`Total messages in map after update: ${updatedMessages.size}`);
           return updatedMessages;
@@ -928,13 +901,6 @@ const AdminChat: React.FC = () => {
             const updatedMessages = new Map(prevMessages);
             newMessages.forEach((msg, id) => {
               updatedMessages.set(id, msg);
-              
-              // Remove from pending if it exists
-              setCommunityPendingMessages(prev => {
-                const updated = new Map(prev);
-                updated.delete(id);
-                return updated;
-              });
             });
             console.log(`Total community messages in map after update: ${updatedMessages.size}`);
             return updatedMessages;
@@ -1008,15 +974,6 @@ const AdminChat: React.FC = () => {
             });
             console.log(`Total past questions messages in map after update: ${updatedMessages.size}`);
             return updatedMessages;
-          });
-          
-          // Remove from pending in a separate update to avoid nested state updates
-          setPastQuestionsPendingMessages(prev => {
-            const updated = new Map(prev);
-            newMessages.forEach((_, id) => {
-              updated.delete(id);
-            });
-            return updated;
           });
           
           // Set hasMoreMessages to true since we're only loading a limited number initially
@@ -1771,25 +1728,6 @@ const AdminChat: React.FC = () => {
           return newMap;
         });
         
-        // Also remove from pending messages if it exists there
-        setPendingMessages(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(messageToDelete.id!);
-          return newMap;
-        });
-        
-        setCommunityPendingMessages(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(messageToDelete.id!);
-          return newMap;
-        });
-        
-        setPastQuestionsPendingMessages(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(messageToDelete.id!);
-          return newMap;
-        });
-        
       } else {
         console.error('❌ Failed to delete message:', result.error);
         setError(result.error || 'Failed to delete message');
@@ -1893,7 +1831,7 @@ const AdminChat: React.FC = () => {
         senderId: currentUser.uid,
         senderName: currentUser.displayName || 'Admin',
         receiverId: 'COMMUNITY',
-        text: 'Welcome to Student Details! This is where admins and students can interact together.',
+        text: 'Welcome to Community Chat! This is where admins and students can interact together.',
         timestamp: new Date(), // Use a JavaScript Date instead of serverTimestamp() for immediate visibility
         status: 'sent',
         type: 'text',
@@ -1953,33 +1891,8 @@ const AdminChat: React.FC = () => {
       
       // Send message based on chat mode
       if (chatMode === 'broadcast') {
-        // Create optimistic broadcast message
-        const tempId = `temp_${Date.now()}_${Math.random()}`;
-        
-        // Determine message type based on content
-        let messageType: 'text' | 'attachment' | 'mixed' = 'text';
-        if (selectedAttachments.length > 0) {
-          messageType = message.trim() ? 'mixed' : 'attachment';
-        }
-        
-        const optimisticMessage: ExtendedMessage = {
-          id: tempId,
-          senderId: currentUser.uid,
-          senderName: currentUser.displayName || 'Admin',
-          receiverId: 'ALL',
-          text: message,
-          timestamp: new Date(),
-          status: 'sending',
-          type: messageType,
-          attachments: selectedAttachments.length > 0 ? selectedAttachments : undefined,
-          isBroadcast: true,
-          replyTo: replyingTo || undefined
-        };
-        
-        // Add to pending messages
-        setPendingMessages(prev => new Map(prev).set(tempId, optimisticMessage));
-        
-        // Send the actual message
+        // Send the actual message first, then let the Firestore listener update the UI
+        // No optimistic updates - the onSnapshot listener will pick up the new message
         await sendBroadcastMessage(
           message,
           currentUser.uid,
@@ -1988,35 +1901,10 @@ const AdminChat: React.FC = () => {
           replyingTo || undefined
         );
       } else if (chatMode === 'direct') {
-        // Send to each selected recipient with optimistic updates
+        // Send to each selected recipient - no optimistic updates
+        // The onSnapshot listener will pick up the new messages
         await Promise.all(
           selectedRecipients.map(async (recipientId) => {
-            // Create a unique temp ID for each message
-            const tempId = `temp_${Date.now()}_${recipientId}_${Math.random()}`;
-            
-            // Determine message type based on content
-            let messageType: 'text' | 'attachment' | 'mixed' = 'text';
-            if (selectedAttachments.length > 0) {
-              messageType = message.trim() ? 'mixed' : 'attachment';
-            }
-            
-            const optimisticMessage: ExtendedMessage = {
-              id: tempId,
-              senderId: currentUser.uid,
-              senderName: currentUser.displayName || 'Admin',
-              receiverId: recipientId,
-              text: message,
-              timestamp: new Date(),
-              status: 'sending',
-              type: messageType,
-              attachments: selectedAttachments.length > 0 ? selectedAttachments : undefined,
-              replyTo: replyingTo || undefined
-            };
-            
-            // Add to pending messages
-            setPendingMessages(prev => new Map(prev).set(tempId, optimisticMessage));
-            
-            // Send the actual message
             await sendDirectMessage(
               message,
               currentUser.uid,
@@ -2028,7 +1916,6 @@ const AdminChat: React.FC = () => {
           })
         );
       } else if (chatMode === 'community') {
-        // For community messages, don't use optimistic updates to avoid duplicates
         // Just send the message and let the listener handle the UI update
         await sendCommunityMessage(
           message,
@@ -2429,8 +2316,9 @@ const AdminChat: React.FC = () => {
             }}
             startIcon={<PeopleIcon fontSize="small" />}
           >
-            Student Details
+            Community Chat
         </Button>
+        {/* Past Questions tab - commented out
         <Button
           variant={chatMode === 'pastQuestions' ? "contained" : "outlined"}
           color="primary"
@@ -2456,6 +2344,7 @@ const AdminChat: React.FC = () => {
         >
           Past Questions
         </Button>
+        */}
       </Box>
       
         {/* Only show recipient dropdown when Direct Message is selected */}
@@ -2701,7 +2590,7 @@ const AdminChat: React.FC = () => {
               <Typography variant="subtitle1" sx={{ mr: 1, fontWeight: "500" }}>
                 {chatMode === 'broadcast' ? 'Broadcast' : 
                  chatMode === 'direct' ? 'Direct Messages' : 
-                 chatMode === 'community' ? 'Student Details' : 'Past Questions Monitor'}
+                 chatMode === 'community' ? 'Community Chat' : 'Past Questions Monitor'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {chatMode === 'broadcast' ? 'Message to all students' : 
@@ -2838,15 +2727,7 @@ const AdminChat: React.FC = () => {
                           msg={message} 
                           isCurrentUser={isCurrentUser} 
                           formatTime={formatTime} 
-                          isPending={
-                            message.id ? 
-                              chatMode === 'community' ? 
-                                communityPendingMessages.has(message.id) : 
-                              chatMode === 'pastQuestions' ?
-                                pastQuestionsPendingMessages.has(message.id) :
-                                pendingMessages.has(message.id) 
-                              : false
-                          }
+                          isPending={false}
                           onDeleteRequest={handleDeleteMessageRequest}
                           canDeleteMessage={canDeleteMessage}
                           onReplyRequest={handleReplyRequest}
