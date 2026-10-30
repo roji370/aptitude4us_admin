@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Box, 
@@ -96,6 +96,11 @@ const UserDetail: React.FC = () => {
   const [editExamDate, setEditExamDate] = useState<Date | null>(null);
   const [editingSubscriptionId, setEditingSubscriptionId] = useState<string>('');
   const [savingExamDate, setSavingExamDate] = useState(false);
+
+  // Prevent wheel/touch events on date picker popper from scrolling the background page
+  const handlePopperWheel = useCallback((e: React.WheelEvent) => {
+    e.stopPropagation();
+  }, []);
 
   // Pending deletion state (30-day auto-delete)
   const [pendingDeletion, setPendingDeletion] = useState<PendingDeletion | null>(null);
@@ -923,10 +928,21 @@ const UserDetail: React.FC = () => {
               value={editExamDate}
               minDate={new Date()}
               onChange={(newValue) => setEditExamDate(newValue)}
-              slotProps={{ textField: {
+              slotProps={{
+                textField: {
                   fullWidth: true,
                   sx: { mt: 1 }
-                } }}
+                },
+                popper: {
+                  placement: 'top-start',
+                  sx: { zIndex: 1400 },
+                  onWheel: handlePopperWheel,
+                },
+                desktopPaper: {
+                  sx: { overscrollBehavior: 'contain' },
+                  onWheel: handlePopperWheel,
+                },
+              }}
             />
           </LocalizationProvider>
         </DialogContent>
@@ -1008,11 +1024,21 @@ const UserDetail: React.FC = () => {
                   value={examDate}
                   minDate={new Date()}
                   onChange={(newValue) => setExamDate(newValue)}
-                  slotProps={{ textField: {
+                  slotProps={{
+                    textField: {
                       fullWidth: true,
                       helperText: 'If exam date is before subscription end date, access will end on the exam date',
                       sx: { mt: 1 }
-                    } }}
+                    },
+                    popper: {
+                      sx: { zIndex: 1400 },
+                      onWheel: handlePopperWheel,
+                    },
+                    desktopPaper: {
+                      sx: { overscrollBehavior: 'contain' },
+                      onWheel: handlePopperWheel,
+                    },
+                  }}
                 />
               </LocalizationProvider>
               
