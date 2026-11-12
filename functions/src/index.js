@@ -30,6 +30,10 @@ exports.checkViolationResetStatus = violationFunctions.checkViolationResetStatus
 exports.recordScreenshotViolation = violationFunctions.recordScreenshotViolation;
 exports.acknowledgeViolationReset = violationFunctions.acknowledgeViolationReset;
 
+// Import and re-export video URL function
+const videoUrlFunctions = require('./videoUrl');
+exports.getVideoUrl = videoUrlFunctions.getVideoUrl;
+
 // Add a scheduled function to clean up stale tokens
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 
