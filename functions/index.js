@@ -57,6 +57,14 @@ exports.notifyContentItemUpdate = contentUpdates.notifyContentItemUpdate;
 exports.markUpdateAsSeen = contentUpdates.markUpdateAsSeen;
 exports.getUnseenUpdatesCount = contentUpdates.getUnseenUpdatesCount;
 
+// Import and export progress tracking functions
+const progress = require("./src/progress");
+exports.onContentItemWrite = progress.onContentItemWrite;
+exports.onCourseProgressWrite = progress.onCourseProgressWrite;
+exports.onStreakWrite = progress.onStreakWrite;
+exports.onModuleContentChange = progress.onModuleContentChange;
+exports.recordProgress = progress.recordProgress;
+
 // Export notification functions
 exports.sendChatNotification = notifications.sendChatNotification;
 exports.sendCommunityNotification = notifications.sendCommunityNotification;
@@ -323,7 +331,7 @@ exports.createUser = onCall({
 
   try {
     // Get request parameters
-    const { email, password, role, displayName } = data;
+    const { email, password, role, displayName, timezone } = data;
 
     if (!email || !password || !role || !displayName) {
       logger.error('Missing required fields in create user request');
@@ -333,6 +341,17 @@ exports.createUser = onCall({
     if (!['admin', 'student'].includes(role)) {
       logger.error(`Invalid role: ${role}`);
       throw new Error("Role must be either 'admin' or 'student'.");
+    }
+
+    // Validate timezone if provided
+    let validTimezone = 'Asia/Kolkata'; // default fallback
+    if (timezone && typeof timezone === 'string') {
+      try {
+        Intl.DateTimeFormat('en', { timeZone: timezone });
+        validTimezone = timezone;
+      } catch {
+        logger.warn(`Invalid timezone "${timezone}", falling back to Asia/Kolkata`);
+      }
     }
 
     // Check caller permissions - admin check
@@ -361,6 +380,7 @@ exports.createUser = onCall({
       email,
       displayName,
       role,
+      timezone: validTimezone,
       assignedModules: [],
       assignedCourseIds: [],
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -505,8 +525,9 @@ exports.triggerCourseAssignmentNotification = onCall({
  */
 exports.deleteUser = onCall({
   enforceAppCheck: false, // Set to true in production
-  cpu: 0.5,  // Reduce CPU allocation
-  memory: "256MiB"
+  cpu: 0.5,
+  memory: "512MiB",
+  timeoutSeconds: 120, // recursiveDelete on large accounts can take a while
 }, async (request) => {
   const { data, auth } = request;
 
@@ -540,50 +561,74 @@ exports.deleteUser = onCall({
       deletedBy: callerUid,
     });
 
-    // Step 1: Delete user progress data
-    const progressRef = db.collection(`users/${userIdToDelete}/progress`);
-    const progressSnapshot = await progressRef.get();
-    const progressDeletions = [];
+    // Step 1: Disable the auth account first (retryable, no data loss)
+    try {
+      await authAdmin.updateUser(userIdToDelete, {disabled: true});
+      logger.info(`Disabled auth account for ${userIdToDelete}`);
+    } catch (disableErr) {
+      // If user doesn't exist in auth, continue with Firestore cleanup
+      if (disableErr.code !== "auth/user-not-found") {
+        throw disableErr;
+      }
+      logger.warn(`Auth user ${userIdToDelete} not found, continuing with Firestore cleanup`);
+    }
 
-    progressSnapshot.forEach(doc => {
-      progressDeletions.push(doc.ref.delete());
-    });
+    // Step 2: Delete all Firestore data using recursiveDelete (handles
+    // batching, the 500-op limit, and retries automatically).
+    // progress/{userId} and all subcollections (courseProgress, contentItems, resume)
+    await db.recursiveDelete(db.doc(`progress/${userIdToDelete}`));
+    logger.info(`Recursively deleted progress/* for user ${userIdToDelete}`);
 
-    await Promise.all(progressDeletions);
-    logger.info(`Deleted ${progressDeletions.length} progress records for user ${userIdToDelete}`);
+    // streaks/{userId}
+    const streakRef = db.doc(`streaks/${userIdToDelete}`);
+    const streakSnap = await streakRef.get();
+    if (streakSnap.exists) {
+      await streakRef.delete();
+      logger.info(`Deleted streak doc for user ${userIdToDelete}`);
+    }
 
-    // Step 2: Delete user login logs
-    const logsQuery = db.collection('loginLogs').where('userId', '==', userIdToDelete);
+    // Legacy progress data (users/{userId}/progress/*)
+    const legacyRef = db.collection(`users/${userIdToDelete}/progress`);
+    const legacySnap = await legacyRef.get();
+    if (!legacySnap.empty) {
+      const batch = db.batch();
+      legacySnap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      logger.info(`Deleted ${legacySnap.size} legacy progress docs for user ${userIdToDelete}`);
+    }
+
+    // Step 3: Delete user login logs
+    const logsQuery = db.collection("loginLogs").where("userId", "==", userIdToDelete);
     const logsSnapshot = await logsQuery.get();
-    const logDeletions = [];
+    if (!logsSnapshot.empty) {
+      const batch = db.batch();
+      logsSnapshot.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      logger.info(`Deleted ${logsSnapshot.size} login logs for user ${userIdToDelete}`);
+    }
 
-    logsSnapshot.forEach(doc => {
-      logDeletions.push(doc.ref.delete());
-    });
-
-    await Promise.all(logDeletions);
-    logger.info(`Deleted ${logDeletions.length} login logs for user ${userIdToDelete}`);
-
-    // Step 3: Delete user document
-    await db.collection('users').doc(userIdToDelete).delete();
+    // Step 4: Delete user document
+    await db.collection("users").doc(userIdToDelete).delete();
     logger.info(`Deleted user document for ${userIdToDelete}`);
 
-    // Step 4: Delete user from Firebase Auth
-    await authAdmin.deleteUser(userIdToDelete);
-    logger.info(`Deleted user auth record for ${userIdToDelete}`);
+    // Step 5: Delete user from Firebase Auth (treat user-not-found as success)
+    try {
+      await authAdmin.deleteUser(userIdToDelete);
+      logger.info(`Deleted user auth record for ${userIdToDelete}`);
+    } catch (authErr) {
+      if (authErr.code === "auth/user-not-found") {
+        logger.info(`Auth user ${userIdToDelete} already deleted or not found`);
+      } else {
+        throw authErr;
+      }
+    }
 
     return {
       success: true,
       message: `User ${userIdToDelete} successfully deleted`,
-      deletedItems: {
-        progress: progressDeletions.length,
-        logs: logDeletions.length,
-        userDoc: 1,
-        authRecord: 1
-      }
     };
   } catch (error) {
-    logger.error('Error deleting user:', error);
+    logger.error("Error deleting user:", error);
     throw new Error(`Error deleting user: ${error.message}`);
   }
 });
