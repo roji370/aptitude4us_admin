@@ -32,6 +32,9 @@ const SubscriptionDashboard = lazy(() => import('./pages/SubscriptionDashboard')
 const SubscriptionManagement = lazy(() => import('./pages/SubscriptionManagement'));
 const SubscriptionDetail = lazy(() => import('./pages/SubscriptionDetail'));
 
+// Progress deep-dive page
+const StudentProgressDetail = lazy(() => import('./pages/StudentProgressDetail'));
+
 // Piracy Tracking page
 const PiracyTracking = lazy(() => import('./pages/PiracyTracking'));
 
@@ -246,6 +249,19 @@ const AppContent: React.FC = () => {
               <MainLayout>
                 <React.Suspense fallback={<LoadingComponent />}>
                   <CreateUser />
+                </React.Suspense>
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/users/:id/progress"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <MainLayout>
+                <React.Suspense fallback={<LoadingComponent />}>
+                  <StudentProgressDetail />
                 </React.Suspense>
               </MainLayout>
             </ProtectedRoute>
