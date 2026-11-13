@@ -64,6 +64,7 @@ export interface Module {
   prerequisites: string[]; // Module IDs
   createdAt: Date;
   updatedAt: Date;
+  contentUpdatedAt?: Date; // Set by Cloud Function when content items change (not title edits)
 }
 
 export interface ContentItem {
@@ -71,6 +72,7 @@ export interface ContentItem {
   title: string;
   description?: string;
   url?: string; // Optional for text-based notes
+  storagePath?: string; // Firebase Storage path for signed URL generation
   text?: string; // For text-based notes
   type: 'video' | 'note' | 'pdf' | 'image' | 'audio' | 'link';
   order?: number; // For drag-and-drop ordering
@@ -171,7 +173,8 @@ const moduleConverter = {
       isPublished: data.isPublished,
       prerequisites: data.prerequisites,
       createdAt: data.createdAt.toDate(),
-      updatedAt: data.updatedAt.toDate()
+      updatedAt: data.updatedAt.toDate(),
+      contentUpdatedAt: data.contentUpdatedAt?.toDate?.() ?? undefined,
     } as Module;
 
     console.log('Converted module object:', result);
@@ -557,6 +560,7 @@ export const createTextNote = async (moduleId: string, title: string, text: stri
         createdAt: item.createdAt instanceof Date ? Timestamp.fromDate(item.createdAt) : item.createdAt
       };
       if (item.url !== undefined) normalized.url = item.url;
+      if (item.storagePath !== undefined) normalized.storagePath = item.storagePath;
       if (item.text !== undefined) normalized.text = item.text;
       return normalized;
     };
@@ -643,6 +647,7 @@ export const uploadContent = async (courseId: string, moduleId: string, file: Fi
       title,
       description: description || '',
       url: downloadURL,
+      storagePath: storageRef.fullPath, // Actual path in Storage for signed URL generation
       type,
       order: currentCount, // Set order to end of current list
       isPublished: true, // Default to published
@@ -669,6 +674,7 @@ export const uploadContent = async (courseId: string, moduleId: string, file: Fi
         createdAt: item.createdAt instanceof Date ? Timestamp.fromDate(item.createdAt) : item.createdAt
       };
       if (item.url !== undefined) normalized.url = item.url;
+      if (item.storagePath !== undefined) normalized.storagePath = item.storagePath;
       if (item.text !== undefined) normalized.text = item.text;
       return normalized;
     };
@@ -1442,6 +1448,7 @@ export const uploadContentWithProgress = async (
               };
               if (item.url !== undefined) normalized.url = item.url;
               if (item.text !== undefined) normalized.text = item.text;
+              if (item.storagePath !== undefined) normalized.storagePath = item.storagePath;
               return normalized;
             };
 
@@ -1646,6 +1653,9 @@ export const updateContentOrder = async (
       }
       if (item.text) {
         updatedItem.text = item.text;
+      }
+      if (item.storagePath) {
+        updatedItem.storagePath = item.storagePath;
       }
 
       // Preserve per-item flags so reorder does not reset Draft/Published or One-Time/Multi-View state

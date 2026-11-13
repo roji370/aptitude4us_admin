@@ -185,7 +185,7 @@ const Courses: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <CoursesIcon sx={{ fontSize: 26, color: '#071A52' }} />
             <Typography variant="h4" component="h1" sx={{ fontWeight: 800, color: '#071A52', letterSpacing: '-0.02em' }}>
-              {isAdmin ? 'Examination Curricula' : 'Assigned Curricula'}
+              {isAdmin ? 'Examination Courses' : 'Assigned Courses'}
             </Typography>
           </Box>
           <Typography variant="body2" sx={{ color: '#64748B', mt: 0.5 }}>
@@ -210,7 +210,7 @@ const Courses: React.FC = () => {
               '&:hover': { backgroundColor: '#0C2570' },
             }}
           >
-            New Curriculum
+            New Course
           </Button>
         )}
       </Box>
@@ -230,7 +230,7 @@ const Courses: React.FC = () => {
         <TextField
           fullWidth
           size="small"
-          placeholder="Search curricula by title, category, or syllabus description..."
+          placeholder="Search courses by title, category, or description..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           slotProps={{
@@ -267,13 +267,13 @@ const Courses: React.FC = () => {
           }}
         >
           <Typography variant="h6" sx={{ fontWeight: 700, color: '#071A52', mb: 1 }}>
-            {isAdmin ? 'No curricula match your search' : 'No curricula assigned yet'}
+            {isAdmin ? 'No courses match your search' : 'No courses assigned yet'}
           </Typography>
           <Typography variant="body2" sx={{ color: '#64748B', mb: 3 }}>
             {searchTerm
               ? 'Try modifying your search term or clear the filter.'
               : isAdmin
-              ? 'Click "New Curriculum" to publish your first examination course.'
+              ? 'Click "New Course" to publish your first course.'
               : 'Contact an administrator to request access to preparation tracks.'}
           </Typography>
           {isAdmin && !searchTerm && (
@@ -283,7 +283,7 @@ const Courses: React.FC = () => {
               onClick={handleOpenDialog}
               sx={{ backgroundColor: '#071A52', color: '#FFFFFF', fontWeight: 600 }}
             >
-              Create First Curriculum
+              Create First Course
             </Button>
           )}
         </Paper>
@@ -359,7 +359,7 @@ const Courses: React.FC = () => {
                     />
 
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <Tooltip title={course.isPinned ? 'Unpin curriculum' : 'Pin curriculum'} arrow>
+                      <Tooltip title={course.isPinned ? 'Unpin course' : 'Pin course'} arrow>
                         <IconButton
                           size="small"
                           onClick={(e) => handleTogglePin(course.id, e)}
@@ -437,7 +437,7 @@ const Courses: React.FC = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <CoursesIcon sx={{ fontSize: 16, color: '#006B5F' }} />
                       <Typography variant="body2" sx={{ fontWeight: 700, color: '#071A52', fontSize: '0.78125rem' }}>
-                        {stats ? `${stats.total} Modules` : 'Curriculum Modules'}
+                        {stats ? `${stats.total} Modules` : 'Course Modules'}
                       </Typography>
                     </Box>
 
@@ -535,7 +535,7 @@ const Courses: React.FC = () => {
         <DialogTitle sx={{ px: 3, py: 2, backgroundColor: '#071A52', color: '#FFFFFF' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6" sx={{ fontWeight: 700, color: '#FFFFFF', fontSize: '1.0625rem' }}>
-              Create New Curriculum
+              Create New Course
             </Typography>
             <IconButton onClick={handleCloseDialog} size="small" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
               <CloseIcon fontSize="small" />
@@ -551,7 +551,7 @@ const Courses: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
               name="title"
-              label="Curriculum Title"
+              label="Course Title"
               fullWidth
               required
               value={newCourse.title}
@@ -561,11 +561,11 @@ const Courses: React.FC = () => {
             />
 
             <FormControl fullWidth size="small">
-              <InputLabel>Curriculum Category</InputLabel>
+              <InputLabel>Course Category</InputLabel>
               <Select
                 name="category"
                 value={newCourse.category}
-                label="Curriculum Category"
+                label="Course Category"
                 onChange={handleInputChange}
               >
                 <MenuItem value="General">General Examination</MenuItem>
@@ -579,13 +579,13 @@ const Courses: React.FC = () => {
 
             <TextField
               name="description"
-              label="Curriculum Description"
+              label="Course Description"
               fullWidth
               multiline
               rows={3}
               value={newCourse.description}
               onChange={handleInputChange}
-              placeholder="Brief description of the examination curriculum and targets..."
+              placeholder="Brief description of the course and targets..."
               size="small"
             />
           </Box>
@@ -612,7 +612,7 @@ const Courses: React.FC = () => {
               '&:hover': { backgroundColor: '#0C2570' },
             }}
           >
-            {creating ? <CircularProgress size={18} sx={{ color: '#FFFFFF' }} /> : 'Publish Curriculum'}
+            {creating ? <CircularProgress size={18} sx={{ color: '#FFFFFF' }} /> : 'Publish Course'}
           </Button>
         </DialogActions>
       </Dialog>
