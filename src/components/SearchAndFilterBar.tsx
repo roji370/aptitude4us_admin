@@ -140,14 +140,14 @@ const SearchAndFilterBar: React.FC<SearchAndFilterBarProps> = ({
         {/* Course Filter */}
         <Grid size={{ xs: 12, sm: 6, md: 2 }}>
           <FormControl fullWidth size="small">
-            <InputLabel sx={{ fontSize: '0.8125rem' }}>Curriculum</InputLabel>
+            <InputLabel sx={{ fontSize: '0.8125rem' }}>Course</InputLabel>
             <Select
               value={filters.assignedCourse}
-              label="Curriculum"
+              label="Course"
               onChange={handleCourseChange}
               sx={{ borderRadius: 2, fontSize: '0.84375rem', backgroundColor: '#F8FAFC' }}
             >
-              <MenuItem value="">All Curricula</MenuItem>
+              <MenuItem value="">All Courses</MenuItem>
               {courses.map((course) => (
                 <MenuItem key={course.id} value={course.id}>
                   {course.title}

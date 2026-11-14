@@ -172,7 +172,7 @@ const ViolationsDashboard: React.FC<ViolationsDashboardProps> = ({
             }}
           />
         );
-      case 'CLEAR':
+      case 'NONE':
         return (
           <Chip
             icon={<CheckCircleIcon sx={{ fontSize: '13px !important', color: '#065F46 !important' }} />}
@@ -449,14 +449,14 @@ const ViolationsDashboard: React.FC<ViolationsDashboardProps> = ({
 
                       <TableCell align="center" sx={{ py: 1.5 }}>
                         <Chip
-                          label={`${v.violationCount} Attempts`}
+                          label={`${v.count} Attempts`}
                           size="small"
                           sx={{
                             height: 20,
                             fontSize: '0.6875rem',
                             fontWeight: 700,
-                            backgroundColor: v.violationCount > 1 ? '#FEF2F2' : '#FFFBEB',
-                            color: v.violationCount > 1 ? '#991B1B' : '#92400E',
+                            backgroundColor: v.count > 1 ? '#FEF2F2' : '#FFFBEB',
+                            color: v.count > 1 ? '#991B1B' : '#92400E',
                           }}
                         />
                       </TableCell>
@@ -466,7 +466,7 @@ const ViolationsDashboard: React.FC<ViolationsDashboardProps> = ({
                       </TableCell>
 
                       <TableCell align="center" sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem', display: { xs: 'none', md: 'table-cell' } }}>
-                        {formatDate(v.firstViolation)}
+                        {formatDate(v.firstWarning)}
                       </TableCell>
 
                       <TableCell align="center" sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem', display: { xs: 'none', lg: 'table-cell' } }}>

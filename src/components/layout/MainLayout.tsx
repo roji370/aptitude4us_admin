@@ -220,7 +220,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const getBreadcrumbTitle = () => {
     const path = location.pathname;
     if (path === '/' || path === '/dashboard') return 'Overview & Operations';
-    if (path.startsWith('/courses')) return 'Curriculum & Courses';
+    if (path.startsWith('/courses')) return 'Courses';
     if (path.startsWith('/accounts')) return 'Student Accounts';
     if (path.startsWith('/users')) return 'User Management';
     if (path.startsWith('/chat')) return 'Communications & Live Chat';
