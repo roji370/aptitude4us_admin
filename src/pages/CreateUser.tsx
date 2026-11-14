@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Box, 
@@ -14,7 +14,8 @@ import {
   Alert,
   SelectChangeEvent,
   IconButton,
-  InputAdornment
+  InputAdornment,
+  Autocomplete,
 } from '@mui/material';
 import { 
   ArrowBack as ArrowBackIcon,
@@ -25,11 +26,34 @@ import { createUser } from '../services/authService';
 
 const CreateUser: React.FC = () => {
   const navigate = useNavigate();
+
+  // Build timezone list once
+  const timezones = useMemo(() => {
+    try {
+      return Intl.supportedValuesOf('timeZone');
+    } catch {
+      // Fallback for older browsers
+      return [
+        'Asia/Kolkata', 'Europe/Dublin', 'Europe/London', 'America/New_York',
+        'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'UTC',
+      ];
+    }
+  }, []);
+
+  const browserTimezone = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return 'Asia/Kolkata';
+    }
+  }, []);
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     displayName: '',
-    role: 'student'
+    role: 'student',
+    timezone: browserTimezone,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +120,8 @@ const CreateUser: React.FC = () => {
         formData.email,
         formData.password,
         formData.role as 'admin' | 'student',
-        formData.displayName
+        formData.displayName,
+        formData.timezone
       );
       
       setSuccess(true);
@@ -106,7 +131,8 @@ const CreateUser: React.FC = () => {
         email: '',
         password: '',
         displayName: '',
-        role: 'student'
+        role: 'student',
+        timezone: browserTimezone,
       });
       
       // Redirect after 2 seconds
@@ -236,6 +262,27 @@ const CreateUser: React.FC = () => {
               <MenuItem value="admin">Admin</MenuItem>
             </Select>
           </FormControl>
+          
+          <Autocomplete
+            options={timezones}
+            value={formData.timezone}
+            onChange={(_e, newValue) => {
+              setFormData((prev) => ({
+                ...prev,
+                timezone: newValue || browserTimezone,
+              }));
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Timezone"
+                helperText="Used for streak calculation. Defaults to your browser timezone."
+              />
+            )}
+            disabled={loading}
+            disableClearable
+            fullWidth
+          />
           
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
             <Button

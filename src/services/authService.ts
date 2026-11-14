@@ -240,7 +240,8 @@ export const createUser = async (
   email: string, 
   password: string, 
   role: 'admin' | 'student',
-  displayName: string
+  displayName: string,
+  timezone?: string
 ): Promise<User | null> => {
   try {
     console.log(`Creating user via Cloud Function: ${email}, role: ${role}`);
@@ -251,7 +252,8 @@ export const createUser = async (
       email,
       password,
       role,
-      displayName
+      displayName,
+      timezone: timezone || undefined,
     });
     
     // Parse the response
