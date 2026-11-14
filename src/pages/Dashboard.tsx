@@ -37,9 +37,10 @@ import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useNavigate } from 'react-router-dom';
 import { getUsersByRole } from '../services/userService';
-import { getActiveCourses } from '../services/courseService';
+import { getActiveCourses, getModuleStatsByCourseId, getModulesByCourseId } from '../services/courseService';
 import { getPendingDeletionCount } from '../services/dataPurgeService';
-import { getActiveSubscriptions, getExpiringSubscriptions } from '../services/subscriptionService';
+import { getActiveSubscriptions, getExpiringSubscriptions, getUserSubscriptions } from '../services/subscriptionService';
+import DashboardProgressWidgets from '../components/DashboardProgressWidgets';
 
 interface DashboardStats {
   totalStudents: number;
@@ -54,15 +55,16 @@ interface RecentUser {
   email: string;
   date: Date;
   status: 'active' | 'expiring' | 'inactive';
+  accessExpiry?: Date | null;
 }
 
 interface RecentCourse {
   id: string;
   title: string;
   category: string;
-  modulesCount?: number;
-  studentsCount?: number;
-  batch?: string;
+  modulesCount: number;
+  totalResources: number;
+  publishedResources: number;
   date: Date;
 }
 
@@ -143,38 +145,78 @@ const Dashboard: React.FC = () => {
       });
       setPendingDeletionCount(pdCount);
 
-      // Process recent users
-      const usersData: RecentUser[] = usersSnapshot.docs.map((doc, idx) => {
+      // Process recent users with subscription expiry
+      const usersDataPromises = usersSnapshot.docs.map(async (doc) => {
         const data = doc.data();
         const date = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
-        // Give sample status variations for clinical preview
-        const status: 'active' | 'expiring' | 'inactive' =
-          idx === 2 ? 'expiring' : idx === 5 ? 'inactive' : 'active';
+        
+        // Fetch subscription to get access expiry
+        let accessExpiry: Date | null = null;
+        let status: 'active' | 'expiring' | 'inactive' = 'inactive';
+        try {
+          const subs = await getUserSubscriptions(doc.id);
+          const activeSub = subs.find(s => s.status === 'active');
+          if (activeSub) {
+            const endDate = activeSub.effectiveEndDate || activeSub.endDate;
+            accessExpiry = endDate instanceof Date ? endDate : (endDate as any)?.toDate?.() || null;
+            if (accessExpiry) {
+              const daysLeft = Math.ceil((accessExpiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+              status = daysLeft <= 7 ? 'expiring' : 'active';
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to fetch subscription for user', doc.id, err);
+        }
+
         return {
           id: doc.id,
           name: data.displayName || data.name || 'Candidate',
           email: data.email || 'candidate@hse.ie',
           date,
           status,
+          accessExpiry,
         };
       });
+      const usersData: RecentUser[] = await Promise.all(usersDataPromises);
       setRecentUsers(usersData);
 
-      // Process recent courses
-      const coursesData: RecentCourse[] = coursesSnapshot.docs.map((doc, idx) => {
+      // Process recent courses with actual module and resource counts
+      const coursesDataPromises = coursesSnapshot.docs.map(async (doc) => {
         const data = doc.data();
         const date = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
-        const batches = ['Batch #24', 'Cohort IV', 'NMBI Track', 'Intensive Prep'];
+        let modulesCount = 0;
+        let totalResources = 0;
+        let publishedResources = 0;
+        try {
+          const [moduleStats, modules] = await Promise.all([
+            getModuleStatsByCourseId(doc.id),
+            getModulesByCourseId(doc.id),
+          ]);
+          modulesCount = moduleStats.total;
+          
+          // Count all resources across all modules
+          for (const mod of modules) {
+            const contentTypes = ['videos', 'notes', 'pdfs', 'images', 'audios', 'links'] as const;
+            for (const type of contentTypes) {
+              const items = mod.content?.[type] || [];
+              totalResources += items.length;
+              publishedResources += items.filter(item => item.isPublished !== false).length;
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to fetch module stats for course', doc.id, err);
+        }
         return {
           id: doc.id,
-          title: data.title || 'RCSI Examination Module',
-          category: data.category || 'RCSI Prep',
-          modulesCount: data.modules?.length || (idx === 0 ? 12 : idx === 1 ? 8 : 6),
-          studentsCount: idx === 0 ? 420 : idx === 1 ? 315 : 280,
-          batch: batches[idx % batches.length],
+          title: data.title || 'Course',
+          category: data.category || 'General',
+          modulesCount,
+          totalResources,
+          publishedResources,
           date,
         };
       });
+      const coursesData: RecentCourse[] = await Promise.all(coursesDataPromises);
       setRecentCourses(coursesData);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -217,7 +259,7 @@ const Dashboard: React.FC = () => {
             Academic Oversight
           </Typography>
           <Typography variant="body2" sx={{ color: '#64748B' }}>
-            Live status of enrolled candidates, active subscriptions, and RCSI examination curricula.
+            Live status of enrolled candidates, active subscriptions, and RCSI examination courses.
           </Typography>
         </Box>
 
@@ -431,7 +473,7 @@ const Dashboard: React.FC = () => {
               }}
             />
             <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.75rem' }}>
-              in curriculum flow
+              in course flow
             </Typography>
           </Box>
         </Card>
@@ -679,8 +721,8 @@ const Dashboard: React.FC = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Candidate</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Track / Course</TableCell>
                   <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Status</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Access Expiry</TableCell>
                   <TableCell align="right">Admitted</TableCell>
                 </TableRow>
               </TableHead>
@@ -689,8 +731,8 @@ const Dashboard: React.FC = () => {
                   [...Array(4)].map((_, i) => (
                     <TableRow key={i}>
                       <TableCell><Skeleton width={120} /></TableCell>
-                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}><Skeleton width={100} /></TableCell>
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}><Skeleton width={60} /></TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}><Skeleton width={80} /></TableCell>
                       <TableCell align="right"><Skeleton width={50} /></TableCell>
                     </TableRow>
                   ))
@@ -731,15 +773,6 @@ const Dashboard: React.FC = () => {
                             </Typography>
                           </Box>
                         </Box>
-                      </TableCell>
-
-                      <TableCell sx={{ py: 1.5, display: { xs: 'none', sm: 'table-cell' } }}>
-                        <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8125rem', color: '#151C27' }}>
-                          RCSI Aptitude Prep
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#94A3B8', fontSize: '0.6875rem' }}>
-                          Batch #24 • Mod 3/12
-                        </Typography>
                       </TableCell>
 
                       <TableCell sx={{ py: 1.5, display: { xs: 'none', sm: 'table-cell' } }}>
@@ -786,6 +819,12 @@ const Dashboard: React.FC = () => {
                         )}
                       </TableCell>
 
+                      <TableCell sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem', display: { xs: 'none', md: 'table-cell' } }}>
+                        {user.accessExpiry
+                          ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(user.accessExpiry)
+                          : '—'}
+                      </TableCell>
+
                       <TableCell align="right" sx={{ py: 1.5, color: '#64748B', fontSize: '0.78125rem' }}>
                         {formatTimeAgo(user.date)}
                       </TableCell>
@@ -826,7 +865,7 @@ const Dashboard: React.FC = () => {
           </Box>
         </Card>
 
-        {/* Right Column: Core Examination Curricula */}
+        {/* Right Column: Core Examination Courses */}
         <Card
           sx={{
             p: 3,
@@ -854,7 +893,7 @@ const Dashboard: React.FC = () => {
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ color: '#64748B', fontSize: '0.8125rem', mt: 0.25 }}>
-                Core RCSI examination curricula
+                Core RCSI examination courses
               </Typography>
             </Box>
 
@@ -942,9 +981,9 @@ const Dashboard: React.FC = () => {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.75, color: '#64748B', fontSize: '0.71875rem', flexWrap: 'wrap' }}>
                         <span>{course.modulesCount} Modules</span>
                         <span>•</span>
-                        <span style={{ fontWeight: 600, color: '#071A52' }}>{course.studentsCount} Candidates</span>
+                        <span>{course.totalResources} Resources</span>
                         <span>•</span>
-                        <span>{course.batch}</span>
+                        <span style={{ fontWeight: 600, color: '#065F46' }}>{course.publishedResources} Published</span>
                       </Box>
                     </Box>
 

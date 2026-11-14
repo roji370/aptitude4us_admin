@@ -204,7 +204,7 @@ const Accounts: React.FC = () => {
             </Typography>
           </Box>
           <Typography variant="body2" sx={{ color: '#64748B', mt: 0.5 }}>
-            Manage candidate profiles, RCSI curricula access, subscription validity, and exam dates.
+            Manage candidate profiles, RCSI course access, subscription validity, and exam dates.
           </Typography>
         </Box>
 
