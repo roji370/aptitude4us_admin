@@ -24,7 +24,8 @@ service cloud.firestore {
       // currentStreak, totalCoursesCompleted) is server-managed.
       allow update: if isAuthenticated() && request.auth.uid == userId
         && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['displayName', 'photoURL', 'timezone', 'fcmToken', 'lastLoginAt'])
+            .hasOnly(['displayName', 'photoURL', 'photoUrl', 'timezone', 'fcmToken', 'lastLoginAt',
+                       'dateOfJoining', 'examDate', 'mobile', 'subscriptionPeriod', 'profileCompleted'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['timezone'])
             || (request.resource.data.timezone is string
                 && request.resource.data.timezone.size() < 64));
