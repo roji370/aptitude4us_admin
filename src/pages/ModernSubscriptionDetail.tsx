@@ -12,10 +12,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Card,
   CardContent,
   IconButton,
@@ -34,14 +30,13 @@ import {
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   ArrowBack as ArrowBackIcon,
-  Refresh as RefreshIcon,
   Cancel as CancelIcon,
   Email as EmailIcon,
   CreditCard as CreditCardIcon,
   Event as EventIcon
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getSubscriptionById, renewSubscription, cancelSubscription, computeEffectiveEndDate } from '../services/subscriptionService';
+import { getSubscriptionById, cancelSubscription, computeEffectiveEndDate } from '../services/subscriptionService';
 import { getUserById } from '../services/userService';
 import type { UserDetails } from '../services/userService';
 import { Subscription } from '../types/subscription';
@@ -53,9 +48,7 @@ const ModernSubscriptionDetail: React.FC = () => {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [user, setUser] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [openRenewDialog, setOpenRenewDialog] = useState(false);
   const [openCancelDialog, setOpenCancelDialog] = useState(false);
-  const [renewalMonths, setRenewalMonths] = useState(1);
   const [processing, setProcessing] = useState(false);
   const [sentNotification, setSentNotification] = useState(false);
   const navigate = useNavigate();
@@ -93,38 +86,12 @@ const ModernSubscriptionDetail: React.FC = () => {
     fetchData();
   }, [id]);
   
-  const handleOpenRenewDialog = () => {
-    setOpenRenewDialog(true);
-  };
-  
-  const handleCloseRenewDialog = () => {
-    setOpenRenewDialog(false);
-    setRenewalMonths(1);
-  };
-  
   const handleOpenCancelDialog = () => {
     setOpenCancelDialog(true);
   };
   
   const handleCloseCancelDialog = () => {
     setOpenCancelDialog(false);
-  };
-  
-  const handleRenewSubscription = async () => {
-    if (!subscription) return;
-    
-    setProcessing(true);
-    try {
-      await renewSubscription(subscription.id, renewalMonths);
-      // Refresh the data
-      const updatedSubscription = await getSubscriptionById(subscription.id);
-      setSubscription(updatedSubscription);
-      handleCloseRenewDialog();
-    } catch (error) {
-      console.error('Error renewing subscription:', error);
-    } finally {
-      setProcessing(false);
-    }
   };
   
   const handleCancelSubscription = async () => {
@@ -320,16 +287,6 @@ const ModernSubscriptionDetail: React.FC = () => {
                   }}
                 >
                   <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleOpenRenewDialog}
-                    startIcon={<RefreshIcon />}
-                    size="small"
-                  >
-                    Renew
-                  </Button>
-                  
-                  <Button
                     variant="outlined"
                     color="error"
                     onClick={handleOpenCancelDialog}
@@ -341,31 +298,11 @@ const ModernSubscriptionDetail: React.FC = () => {
                 </Box>
               )}
               
-              {isCancelled && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleOpenRenewDialog}
-                  startIcon={<RefreshIcon />}
-                  sx={{ mt: 2 }}
-                >
-                  Renew
-                </Button>
-              )}
-              
               {isExpired && !isCancelled && (
                 <Box>
                   <Alert severity="error" sx={{ mb: 2 }}>
                     This subscription has expired.
                   </Alert>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleOpenRenewDialog}
-                    startIcon={<RefreshIcon />}
-                  >
-                    Renew Now
-                  </Button>
                 </Box>
               )}
               
@@ -520,44 +457,6 @@ const ModernSubscriptionDetail: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
-      
-      {/* Renew Dialog */}
-      <Dialog open={openRenewDialog} onClose={handleCloseRenewDialog}>
-        <DialogTitle>Renew Subscription</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Select the duration for which you want to renew this subscription:
-          </DialogContentText>
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel id="renewal-period-label">Renewal Period</InputLabel>
-            <Select
-              labelId="renewal-period-label"
-              id="renewal-period"
-              value={renewalMonths}
-              onChange={(e) => setRenewalMonths(Number(e.target.value))}
-              label="Renewal Period"
-            >
-              <MenuItem value={1}>1 Month</MenuItem>
-              <MenuItem value={3}>3 Months</MenuItem>
-              <MenuItem value={6}>6 Months</MenuItem>
-              <MenuItem value={12}>12 Months (1 Year)</MenuItem>
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseRenewDialog} disabled={processing}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleRenewSubscription} 
-            variant="contained" 
-            color="primary"
-            disabled={processing}
-          >
-            {processing ? <CircularProgress size={24} /> : 'Renew'}
-          </Button>
-        </DialogActions>
-      </Dialog>
       
       {/* Cancel Dialog */}
       <Dialog open={openCancelDialog} onClose={handleCloseCancelDialog}>

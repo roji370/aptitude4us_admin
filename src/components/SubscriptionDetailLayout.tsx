@@ -17,7 +17,6 @@ import {
   CheckCircle as CheckCircleIcon,
   CalendarToday as CalendarIcon,
   Person as PersonIcon,
-  Refresh as RefreshIcon,
   ExtensionOutlined as ExtendIcon,
   CancelOutlined as CancelIcon,
   NotificationsActive as NotificationIcon
@@ -42,7 +41,6 @@ interface SubscriptionDetailLayoutProps {
   daysRemaining: number;
   startDate: Date;
   endDate: Date;
-  onRenew: () => void;
   onExtend: (days?: number) => void;
   onCancel: () => void;
   onSendReminder: () => void;
@@ -58,7 +56,6 @@ const SubscriptionDetailLayout: React.FC<SubscriptionDetailLayoutProps> = ({
   daysRemaining,
   startDate,
   endDate,
-  onRenew,
   onExtend,
   onCancel,
   onSendReminder,
@@ -372,15 +369,6 @@ const SubscriptionDetailLayout: React.FC<SubscriptionDetailLayoutProps> = ({
             {isActive && !isExpired && (
               <>
                 <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<RefreshIcon />}
-                  onClick={onRenew}
-                >
-                  Renew
-                </Button>
-                
-                <Button
                   variant="outlined"
                   color="primary"
                   startIcon={<ExtendIcon />}
@@ -408,28 +396,6 @@ const SubscriptionDetailLayout: React.FC<SubscriptionDetailLayoutProps> = ({
                   {sentNotification ? 'Notification Sent' : 'Send Reminder'}
                 </Button>
               </>
-            )}
-            
-            {isCancelled && (
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<RefreshIcon />}
-                onClick={onRenew}
-              >
-                Renew
-              </Button>
-            )}
-            
-            {isExpired && !isCancelled && (
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<RefreshIcon />}
-                onClick={onRenew}
-              >
-                Renew Now
-              </Button>
             )}
           </Stack>
         </Box>
