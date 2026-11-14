@@ -987,6 +987,7 @@ const CourseDetail: React.FC = () => {
   const handleOpenModuleDialog = () => {
     setOpenModuleDialog(true);
     setTabValue(0);
+    setNewModule({ title: '', description: '', isPublished: false });
     setVideoFiles([]);
     setPdfFiles([]);
     setImageFiles([]);
@@ -995,6 +996,18 @@ const CourseDetail: React.FC = () => {
     setPdfTitles([]);
     setImageTitles([]);
     setAudioTitles([]);
+    // Reset upload progress state so dialog opens fresh
+    setUploadProgress({});
+    setUploadingFiles([]);
+    setCompletedFiles([]);
+    setFailedFiles([]);
+    setUploading(false);
+    setCreatingModule(false);
+    // Clear file input refs so they don't carry stale selections
+    if (videoInputRef.current) videoInputRef.current.value = '';
+    if (pdfInputRef.current) pdfInputRef.current.value = '';
+    if (imageInputRef.current) imageInputRef.current.value = '';
+    if (audioInputRef.current) audioInputRef.current.value = '';
   };
 
   const handleCloseModuleDialog = () => {
@@ -1013,6 +1026,18 @@ const CourseDetail: React.FC = () => {
     setImageTitles([]);
     setAudioTitles([]);
     setTabValue(0);
+    // Reset upload progress state
+    setUploadProgress({});
+    setUploadingFiles([]);
+    setCompletedFiles([]);
+    setFailedFiles([]);
+    setUploading(false);
+    setCreatingModule(false);
+    // Clear file input refs
+    if (videoInputRef.current) videoInputRef.current.value = '';
+    if (pdfInputRef.current) pdfInputRef.current.value = '';
+    if (imageInputRef.current) imageInputRef.current.value = '';
+    if (audioInputRef.current) audioInputRef.current.value = '';
   };
 
   const handleModuleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1510,7 +1535,7 @@ const CourseDetail: React.FC = () => {
       </Box>
 
       {/* Add Module Dialog */}
-      <Dialog open={openModuleDialog} onClose={handleCloseModuleDialog} maxWidth="md" fullWidth>
+      <Dialog open={openModuleDialog} onClose={creatingModule ? undefined : handleCloseModuleDialog} maxWidth="md" fullWidth>
         <DialogTitle>Create Module</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
@@ -1861,7 +1886,7 @@ const CourseDetail: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseModuleDialog}>Cancel</Button>
+          <Button onClick={handleCloseModuleDialog} disabled={creatingModule}>Cancel</Button>
           <Button 
             onClick={handleCreateModule} 
             variant="contained" 

@@ -22,7 +22,7 @@ import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon
 } from '@mui/icons-material';
-import { getCourseById, updateCourse, uploadCourseThumbnail } from '../services/courseService';
+import { getCourseById, updateCourse } from '../services/courseService';
 import type { Course } from '../services/courseService';
 
 const EditCourse: React.FC = () => {
@@ -33,8 +33,7 @@ const EditCourse: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+
 
   // Form state
   const [formData, setFormData] = useState({
@@ -71,9 +70,7 @@ const EditCourse: React.FC = () => {
           isPublished: courseData.isPublished
         });
         
-        if (courseData.thumbnailUrl) {
-          setThumbnailPreview(courseData.thumbnailUrl);
-        }
+
       } catch (error) {
         console.error('Error fetching course details:', error);
         setError('Failed to load course details');
@@ -110,20 +107,6 @@ const EditCourse: React.FC = () => {
     });
   };
 
-  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setThumbnailFile(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = () => {
-        setThumbnailPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleBackClick = () => {
     navigate(`/courses/${id}`);
   };
@@ -150,11 +133,7 @@ const EditCourse: React.FC = () => {
         isActive: formData.isActive
       });
       
-      // Upload thumbnail if provided
-      if (thumbnailFile) {
-        await uploadCourseThumbnail(id, thumbnailFile);
-      }
-      
+
       setSuccess('Course updated successfully');
       
       // Fetch updated course
@@ -305,35 +284,6 @@ const EditCourse: React.FC = () => {
                 value={formData.description}
                 onChange={handleInputChange}
               />
-            </Grid>
-            
-            <Grid size={{ xs: 12 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Course Thumbnail
-              </Typography>
-              
-              {thumbnailPreview && (
-                <Box sx={{ mb: 2, maxWidth: '300px' }}>
-                  <img 
-                    src={thumbnailPreview} 
-                    alt="Thumbnail preview" 
-                    style={{ width: '100%', borderRadius: '4px' }}
-                  />
-                </Box>
-              )}
-              
-              <Button
-                variant="outlined"
-                component="label"
-              >
-                Upload Thumbnail
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={handleThumbnailChange}
-                />
-              </Button>
             </Grid>
             
             <Grid size={{ xs: 12 }} sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
