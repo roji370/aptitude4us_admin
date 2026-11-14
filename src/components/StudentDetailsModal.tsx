@@ -319,7 +319,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
             variant="subtitle2"
             sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700, color: '#071A52', mb: 1.5 }}
           >
-            <SchoolIcon sx={{ fontSize: 18, color: '#071A52' }} /> Assigned Curricula ({student.assignedCourseIds.length})
+            <SchoolIcon sx={{ fontSize: 18, color: '#071A52' }} /> Assigned Courses ({student.assignedCourseIds.length})
           </Typography>
           {student.courses && student.courses.length > 0 ? (
             <List dense sx={{ p: 0 }}>
@@ -352,7 +352,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
             </List>
           ) : (
             <Typography variant="body2" sx={{ color: '#64748B', fontStyle: 'italic' }}>
-              {student.assignedCourseIds.length > 0 ? 'Loading curricula data...' : 'No curricula assigned.'}
+              {student.assignedCourseIds.length > 0 ? 'Loading course data...' : 'No courses assigned.'}
             </Typography>
           )}
         </Paper>
@@ -404,7 +404,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                   '&:hover': { borderColor: '#CBD5E1', backgroundColor: '#F8FAFC' },
                 }}
               >
-                Assign Curricula
+                Assign Courses
               </Button>
             )}
             <Button

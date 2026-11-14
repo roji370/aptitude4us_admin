@@ -248,7 +248,7 @@ const StudentCard: React.FC<StudentCardProps> = ({
 
               <Chip
                 icon={<SchoolIcon sx={{ fontSize: '13px !important', color: '#006B5F !important' }} />}
-                label={`${student.assignedCourseIds.length} Curricul${student.assignedCourseIds.length === 1 ? 'um' : 'a'}`}
+                label={`${student.assignedCourseIds.length} Course${student.assignedCourseIds.length === 1 ? '' : 's'}`}
                 size="small"
                 sx={{
                   height: 20,
@@ -354,7 +354,7 @@ const StudentCard: React.FC<StudentCardProps> = ({
               sx={{ fontSize: '0.8125rem', py: 0.75, borderRadius: 1.5 }}
             >
               <AssignIcon sx={{ fontSize: 16, mr: 1, color: '#071A52' }} />
-              Assign Curricula
+              Assign Courses
             </MenuItem>
           )}
           {onSendMessage && (

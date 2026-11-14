@@ -757,10 +757,10 @@ const UserDetail: React.FC = () => {
       {(user?.role === 'student' || user?.role === 'admin') && (
         <Paper elevation={0} sx={{ p: 3.5, borderRadius: '16px', border: '1px solid #E2E8F0', bgcolor: '#FFFFFF' }}>
           <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#071A52' }}>
-            Curriculum Access & Course Assignments
+            Course Access & Assignments
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Configure examination modules and curricula this candidate is permitted to access.
+            Configure examination modules and courses this candidate is permitted to access.
           </Typography>
           
           {/* Show course selection form only when showCourseSelect is true */}

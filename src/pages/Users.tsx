@@ -379,7 +379,7 @@ const Users: React.FC = () => {
                   <TableCell>User</TableCell>
                   <TableCell>Role</TableCell>
                   <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Last Active</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Assigned Curricula</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Assigned Courses</TableCell>
                   <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>DRM Binding</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
@@ -456,7 +456,7 @@ const Users: React.FC = () => {
                       {/* Assigned Courses */}
                       <TableCell sx={{ py: 1.5, display: { xs: 'none', lg: 'table-cell' } }}>
                         <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8125rem', color: '#151C27' }}>
-                          {user.assignedCourseIds?.length || 0} Curricula
+                          {user.assignedCourseIds?.length || 0} Courses
                         </Typography>
                       </TableCell>
 
